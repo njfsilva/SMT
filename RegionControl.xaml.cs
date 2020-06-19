@@ -1268,7 +1268,6 @@ namespace SMT
             Brush RouteBrush = new SolidColorBrush(Colors.Yellow);
             Brush RouteAnsiblexBrush = new SolidColorBrush(Colors.DarkMagenta);
 
-            Brush WaypointBrush = new SolidColorBrush(Colors.DarkGray);
 
             // no active route
             if (ActiveCharacter.ActiveRoute.Count == 0)
@@ -1329,7 +1328,11 @@ namespace SMT
                     Timeline.SetDesiredFrameRate(da, 20);
 
                     routeLine.StrokeDashArray = dashes;
-                    routeLine.BeginAnimation(Shape.StrokeDashOffsetProperty, da);
+
+                    if (!MapConf.DisableRoutePathAnimation)
+                    {
+                        routeLine.BeginAnimation(Shape.StrokeDashOffsetProperty, da);
+                    }
 
                     Canvas.SetZIndex(routeLine, 18);
                     MainCanvas.Children.Add(routeLine);
