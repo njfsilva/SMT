@@ -108,6 +108,17 @@ namespace SMT
         // Timer to Re-draw the map
         private System.Windows.Threading.DispatcherTimer uiRefreshTimer;
 
+        private string currentJumpCharacter;
+
+        private EVEData.EveManager.JumpShip jumpShipType;
+
+        private string currentCharacterJumpSystem;
+
+        private bool showJumpDistance;
+
+        private Dictionary<string, EVEData.EveManager.JumpShip> activeJumpSpheres;
+
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -115,7 +126,11 @@ namespace SMT
         {
             InitializeComponent();
             DataContext = this;
+
+            activeJumpSpheres = new Dictionary<string, EVEData.EveManager.JumpShip>();
         }
+
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -442,7 +457,6 @@ namespace SMT
         {
             EM = EVEData.EveManager.Instance;
             SelectedSystem = string.Empty;
-            BridgeInfoL1.Content = string.Empty;
 
             DynamicMapElements = new List<UIElement>();
 
@@ -697,7 +711,13 @@ namespace SMT
                         {
                             NameTrackingLocationMap[fm.Location] = new List<KeyValuePair<bool, string>>();
                         }
-                        NameTrackingLocationMap[fm.Location].Add(new KeyValuePair<bool, string>(false, fm.Name));
+
+                        string displayName = fm.Name;
+                        if(MapConf.FleetShowShipType)
+                        {
+                            displayName += " (" + fm.ShipType + ")";
+                        }
+                        NameTrackingLocationMap[fm.Location].Add(new KeyValuePair<bool, string>(false, displayName));
                     }
                 }
             }
@@ -880,6 +900,10 @@ namespace SMT
             SolidColorBrush PositiveDeltaColor = new SolidColorBrush(Colors.Green);
             SolidColorBrush NegativeDeltaColor = new SolidColorBrush(Colors.Red);
 
+            Brush JumpInRange = new SolidColorBrush(MapConf.ActiveColourScheme.JumpRangeInColour);
+            Brush JumpInRangeMulti = new SolidColorBrush(Colors.Black);
+
+
             SolidColorBrush infoColourDelta = new SolidColorBrush(DataLargeColorDelta);
 
             SolidColorBrush zkbColour = new SolidColorBrush(MapConf.ActiveColourScheme.ZKillDataOverlay);
@@ -887,6 +911,41 @@ namespace SMT
             SolidColorBrush infoLargeColour = new SolidColorBrush(DataLargeColor);
             SolidColorBrush infoVulnerable = new SolidColorBrush(MapConf.ActiveColourScheme.SOVStructureVunerableColour);
             SolidColorBrush infoVulnerableSoon = new SolidColorBrush(MapConf.ActiveColourScheme.SOVStructureVunerableSoonColour);
+
+
+            BridgeInfoStackPanel.Children.Clear();
+            if (!string.IsNullOrEmpty(currentJumpCharacter))
+            {
+                EVEData.System js = EM.GetEveSystem(currentCharacterJumpSystem);
+                string text = $"{jumpShipType} range from {currentJumpCharacter} : {currentCharacterJumpSystem} ({js.Region})";
+
+                Label l = new Label();
+                l.Content = text;
+                l.FontSize = 14;
+                l.FontWeight = FontWeights.Bold;
+                l.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.InRegionSystemTextColour);
+
+                BridgeInfoStackPanel.Children.Add(l);
+
+            }
+            foreach (string key in activeJumpSpheres.Keys)
+            {
+
+                EVEData.System js = EM.GetEveSystem(key);
+                string text = $"{activeJumpSpheres[key]} range from {key} ({js.Region})";
+
+                Label l = new Label();
+                l.Content = text;
+                l.FontSize = 14;
+                l.FontWeight = FontWeights.Bold;
+                l.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.InRegionSystemTextColour);
+
+                BridgeInfoStackPanel.Children.Add(l);
+
+
+            }
+
+
 
             foreach (EVEData.MapSystem sys in Region.MapSystems.Values.ToList())
             {
@@ -1264,6 +1323,128 @@ namespace SMT
                     // save the dynamic map elements
                     DynamicMapElements.Add(poly);
                 }
+
+                if (activeJumpSpheres.Count > 0 || currentJumpCharacter != null)
+                {
+                    bool AddHighlight = false;
+                    bool DoubleHighlight = false;
+
+                    // check character 
+                    if (!string.IsNullOrEmpty(currentJumpCharacter))
+                    {
+                        double Distance = EM.GetRangeBetweenSystems(currentCharacterJumpSystem, sys.Name);
+                        Distance = Distance / 9460730472580800.0;
+
+                        double Max = 0.1f;
+
+                        switch (jumpShipType)
+                        {
+                            case EVEData.EveManager.JumpShip.Super: { Max = 6.0; } break;
+                            case EVEData.EveManager.JumpShip.Titan: { Max = 6.0; } break;
+                            case EVEData.EveManager.JumpShip.Dread: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.Carrier: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.FAX: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.Blops: { Max = 8.0; } break;
+                            case EVEData.EveManager.JumpShip.Rorqual: { Max = 10.0; } break;
+                            case EVEData.EveManager.JumpShip.JF: { Max = 10.0; } break;
+                        }
+
+                        if (Distance < Max && Distance > 0.0 && sys.ActualSystem.TrueSec <= 0.45 && currentCharacterJumpSystem != sys.Name)
+                        {
+                            AddHighlight = true;
+                        }
+                    }
+
+                    foreach (string key in activeJumpSpheres.Keys)
+                    {
+                        if(!string.IsNullOrEmpty(currentJumpCharacter) && key == currentCharacterJumpSystem)
+                        {
+                            continue;
+                        }
+
+                        double Distance = EM.GetRangeBetweenSystems(key, sys.Name);
+                        Distance = Distance / 9460730472580800.0;
+
+                        double Max = 0.1f;
+
+                        switch (activeJumpSpheres[key])
+                        {
+                            case EVEData.EveManager.JumpShip.Super: { Max = 6.0; } break;
+                            case EVEData.EveManager.JumpShip.Titan: { Max = 6.0; } break;
+                            case EVEData.EveManager.JumpShip.Dread: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.Carrier: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.FAX: { Max = 7.0; } break;
+                            case EVEData.EveManager.JumpShip.Blops: { Max = 8.0; } break;
+                            case EVEData.EveManager.JumpShip.Rorqual: { Max = 10.0; } break;
+                            case EVEData.EveManager.JumpShip.JF: { Max = 10.0; } break;
+                        }
+
+                        if (Distance < Max && Distance > 0.0 && sys.ActualSystem.TrueSec <= 0.45 && key != sys.Name)
+                        {
+                            if (AddHighlight)
+                            {
+                                DoubleHighlight = true;
+                            }
+                            AddHighlight = true;
+                        }
+                    }
+
+                    if (AddHighlight)
+                    {
+                        Brush HighlightBrush = JumpInRange;
+                        if (DoubleHighlight)
+                        {
+                            HighlightBrush = JumpInRangeMulti;
+                        }
+
+
+                        if (MapConf.JumpRangeInAsOutline)
+                        {
+                            Shape InRangeMarker;
+
+
+                            if (sys.ActualSystem.HasNPCStation)
+                            {
+                                InRangeMarker = new Rectangle() { Height = SYSTEM_SHAPE_SIZE + 6, Width = SYSTEM_SHAPE_SIZE + 6 };
+                            }
+                            else
+                            {
+                                InRangeMarker = new Ellipse() { Height = SYSTEM_SHAPE_SIZE + 6, Width = SYSTEM_SHAPE_SIZE + 6 };
+                            }
+
+                            InRangeMarker.Stroke = HighlightBrush;
+                            InRangeMarker.StrokeThickness = 6;
+                            InRangeMarker.StrokeLineJoin = PenLineJoin.Round;
+                            InRangeMarker.Fill = HighlightBrush;
+
+                            Canvas.SetLeft(InRangeMarker, sys.LayoutX - (SYSTEM_SHAPE_SIZE + 6) / 2);
+                            Canvas.SetTop(InRangeMarker, sys.LayoutY - (SYSTEM_SHAPE_SIZE + 6) / 2);
+                            Canvas.SetZIndex(InRangeMarker, 19);
+
+                            MainCanvas.Children.Add(InRangeMarker);
+                            DynamicMapElements.Add(InRangeMarker);
+                        }
+                        else
+                        {
+                            Polygon poly = new Polygon();
+
+                            foreach (Point p in sys.CellPoints)
+                            {
+                                poly.Points.Add(p);
+                            }
+
+                            poly.Fill = HighlightBrush;
+                            poly.SnapsToDevicePixels = true;
+                            poly.Stroke = poly.Fill;
+                            poly.StrokeThickness = 3;
+                            poly.StrokeDashCap = PenLineCap.Round;
+                            poly.StrokeLineJoin = PenLineJoin.Round;
+                            MainCanvas.Children.Add(poly);
+                            DynamicMapElements.Add(poly);
+                        }
+                    }
+                }
+
             }
 
             Dictionary<string, int> ZKBBaseFeed = new Dictionary<string, int>();
@@ -1507,6 +1688,7 @@ namespace SMT
             Brush DisabledJumpBridgeBrush = new SolidColorBrush(MapConf.ActiveColourScheme.DisabledJumpBridgeColour);
 
             Brush JumpInRange = new SolidColorBrush(MapConf.ActiveColourScheme.JumpRangeInColour);
+            Brush JumpInRangeMulti = new SolidColorBrush(Colors.Black);
 
             Brush Incursion = new SolidColorBrush(MapConf.ActiveColourScheme.ActiveIncursionColour);
 
@@ -1537,6 +1719,9 @@ namespace SMT
             List<GateHelper> systemLinks = new List<GateHelper>();
 
             Random rnd = new Random(4);
+
+
+  
 
             foreach (KeyValuePair<string, EVEData.MapSystem> kvp in Region.MapSystems)
             {
@@ -2056,103 +2241,7 @@ namespace SMT
                     }
                     */
                 }
-
-                if (!MapConf.ShowJumpDistance)
-                {
-                    BridgeInfoL1.Content = string.Empty;
-                }
-
-                if (MapConf.ShowJumpDistance && MapConf.CurrentJumpSystem != null && system.Name != MapConf.CurrentJumpSystem && MapConf.CurrentJumpSystem != "")
-                {
-                    double Distance = EM.GetRangeBetweenSystems(MapConf.CurrentJumpSystem, system.Name);
-                    Distance = Distance / 9460730472580800.0;
-
-                    double Max = 0.1f;
-
-                    switch (MapConf.JumpShipType)
-                    {
-                        case EVEData.EveManager.JumpShip.Super: { Max = 6.0; } break;
-                        case EVEData.EveManager.JumpShip.Titan: { Max = 6.0; } break;
-                        case EVEData.EveManager.JumpShip.Dread: { Max = 7.0; } break;
-                        case EVEData.EveManager.JumpShip.Carrier: { Max = 7.0; } break;
-                        case EVEData.EveManager.JumpShip.FAX: { Max = 7.0; } break;
-                        case EVEData.EveManager.JumpShip.Blops: { Max = 8.0; } break;
-                        case EVEData.EveManager.JumpShip.Rorqual: { Max = 10.0; } break;
-                        case EVEData.EveManager.JumpShip.JF: { Max = 10.0; } break;
-                    }
-
-                    EVEData.System js = EM.GetEveSystem(MapConf.CurrentJumpSystem);
-
-                    if (MapConf.CurrentJumpCharacter != "")
-                    {
-                        BridgeInfoL1.Content = $"{MapConf.JumpShipType} range from {MapConf.CurrentJumpCharacter} : {MapConf.CurrentJumpSystem} ({js.Region})";
-                    }
-                    else
-                    {
-                        BridgeInfoL1.Content = $"{MapConf.JumpShipType} range from : {MapConf.CurrentJumpSystem} ({js.Region})";
-                    }
-
-                    if (Distance < Max && Distance > 0.0 && system.ActualSystem.TrueSec <= 0.45)
-                    {
-                        string JD = Distance.ToString("0.00") + " LY";
-
-                        Label DistanceText = new Label();
-
-                        DistanceText.Content = JD;
-                        DistanceText.FontSize = 9;
-                        DistanceText.Foreground = DarkTextColourBrush;
-                        regionMarkerOffset += 10;
-
-                        Canvas.SetLeft(DistanceText, system.LayoutX + SYSTEM_REGION_TEXT_X_OFFSET);
-                        Canvas.SetTop(DistanceText, system.LayoutY + SYSTEM_REGION_TEXT_Y_OFFSET);
-
-                        Canvas.SetZIndex(DistanceText, 20);
-                        MainCanvas.Children.Add(DistanceText);
-
-                        if (MapConf.JumpRangeInAsOutline)
-                        {
-                            Shape InRangeMarker;
-
-                            if (system.ActualSystem.HasNPCStation)
-                            {
-                                InRangeMarker = new Rectangle() { Height = SYSTEM_SHAPE_SIZE + 6, Width = SYSTEM_SHAPE_SIZE + 6 };
-                            }
-                            else
-                            {
-                                InRangeMarker = new Ellipse() { Height = SYSTEM_SHAPE_SIZE + 6, Width = SYSTEM_SHAPE_SIZE + 6 };
-                            }
-
-                            InRangeMarker.Stroke = JumpInRange;
-                            InRangeMarker.StrokeThickness = 6;
-                            InRangeMarker.StrokeLineJoin = PenLineJoin.Round;
-                            InRangeMarker.Fill = JumpInRange;
-
-                            Canvas.SetLeft(InRangeMarker, system.LayoutX - (SYSTEM_SHAPE_SIZE + 6) / 2);
-                            Canvas.SetTop(InRangeMarker, system.LayoutY - (SYSTEM_SHAPE_SIZE + 6) / 2);
-                            Canvas.SetZIndex(InRangeMarker, 19);
-
-                            MainCanvas.Children.Add(InRangeMarker);
-                        }
-                        else
-                        {
-                            Polygon poly = new Polygon();
-
-                            foreach (Point p in system.CellPoints)
-                            {
-                                poly.Points.Add(p);
-                            }
-
-                            poly.Fill = JumpInRange;
-                            poly.SnapsToDevicePixels = true;
-                            poly.Stroke = poly.Fill;
-                            poly.StrokeThickness = 3;
-                            poly.StrokeDashCap = PenLineCap.Round;
-                            poly.StrokeLineJoin = PenLineJoin.Round;
-                            MainCanvas.Children.Add(poly);
-                        }
-                    }
-                }
-
+ 
                 if (system.OutOfRegion)
                 {
                     /*
@@ -2526,6 +2615,7 @@ namespace SMT
             {
                 EveManager.JumpShip js = EveManager.JumpShip.Super;
 
+
                 if (mi.DataContext as string == "6")
                 {
                     js = EveManager.JumpShip.Super;
@@ -2545,18 +2635,31 @@ namespace SMT
                     js = EveManager.JumpShip.JF;
                 }
 
+                activeJumpSpheres[eveSys.Name] = js;
+
+
                 if (mi.DataContext as string == "0")
                 {
-                    MapConf.ShowJumpDistance = false;
-                    MapConf.CurrentJumpCharacter = "";
-                    MapConf.CurrentJumpSystem = "";
+                    if(activeJumpSpheres.Keys.Contains(eveSys.Name))
+                    {
+                        activeJumpSpheres.Remove(eveSys.Name);
+                    }
+                }
+
+                if (mi.DataContext as string == "-1")
+                {
+                    activeJumpSpheres.Clear();
+                    currentJumpCharacter = "";
+                    currentCharacterJumpSystem = "";
+                }
+
+                if(!string.IsNullOrEmpty(currentJumpCharacter))
+                {
+                    showJumpDistance = true;
                 }
                 else
                 {
-                    MapConf.ShowJumpDistance = true;
-                    MapConf.CurrentJumpCharacter = "";
-                    MapConf.CurrentJumpSystem = eveSys.Name;
-                    MapConf.JumpShipType = js;
+                    showJumpDistance = activeJumpSpheres.Count > 0;
                 }
 
                 ReDrawMap(true);
@@ -2579,7 +2682,7 @@ namespace SMT
                 if (e.ClickCount == 1)
                 {
                     bool redraw = false;
-                    if (MapConf.ShowJumpDistance || (ShowSystemTimers && (MapConf.ShowIhubVunerabilities || MapConf.ShowTCUVunerabilities)))
+                    if (showJumpDistance || (ShowSystemTimers && (MapConf.ShowIhubVunerabilities || MapConf.ShowTCUVunerabilities)))
                     {
                         redraw = true;
                     }
@@ -2737,18 +2840,20 @@ namespace SMT
 
                 if (mi.DataContext as string == "0")
                 {
-                    MapConf.ShowJumpDistance = false;
-                    MapConf.CurrentJumpCharacter = "";
-                    MapConf.CurrentJumpSystem = "";
+                    showJumpDistance = false;
+                    currentJumpCharacter = "";
+                    currentCharacterJumpSystem = "";
                 }
                 else
                 {
-                    MapConf.ShowJumpDistance = true;
-                    MapConf.CurrentJumpCharacter = lc.Name;
-                    MapConf.CurrentJumpSystem = lc.Location;
-                    MapConf.JumpShipType = js;
+                    showJumpDistance = true;
+                    currentJumpCharacter = lc.Name;
+                    currentCharacterJumpSystem = lc.Location;
+                    jumpShipType = js;
                 }
             }
+
+            ReDrawMap(false);
         }
 
         /// <summary>
@@ -3014,13 +3119,13 @@ namespace SMT
         /// <param name="e"></param>
         private void UiRefreshTimer_Tick(object sender, EventArgs e)
         {
-            if (MapConf.CurrentJumpCharacter != "")
+            if (currentJumpCharacter != "")
             {
                 foreach (LocalCharacter c in EM.LocalCharacters)
                 {
-                    if (c.Name == MapConf.CurrentJumpCharacter)
+                    if (c.Name == currentJumpCharacter)
                     {
-                        MapConf.CurrentJumpSystem = c.Location;
+                        currentCharacterJumpSystem = c.Location;
                     }
                 }
             }
