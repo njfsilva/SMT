@@ -1115,9 +1115,17 @@ namespace SMT.EVEData
             }
 
             string code = query["code"];
+            SsoToken sst;
 
-            SsoToken sst = await ESIClient.SSO.GetTokenV2(GrantType.AuthorizationCode, code, challengeCode, null);
-            if (sst == null || sst.ExpiresIn == 0)
+            try
+            {
+                sst = await ESIClient.SSO.GetTokenV2(GrantType.AuthorizationCode, code, challengeCode, null);
+                if (sst == null || sst.ExpiresIn == 0)
+                {
+                    return;
+                }
+            }
+            catch
             {
                 return;
             }
@@ -1729,6 +1737,7 @@ namespace SMT.EVEData
         private void InitZKillFeed()
         {
             ZKillFeed = new ZKillRedisQ();
+            ZKillFeed.VerString = VersionStr;
             ZKillFeed.Initialise();
         }
 
