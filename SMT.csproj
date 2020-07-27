@@ -420,8 +420,8 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ESI.Net\ESI.NET\ESI.NET.csproj">
-      <Project>{9b2b2831-3c63-4914-bdf2-8bc1a6b6c5c4}</Project>
+    <ProjectReference Include="..\ESI.NET\ESI.NET\ESI.NET.csproj">
+      <Project>{562b2c3b-1272-4ff1-be2c-b98a5d6c22f5}</Project>
       <Name>ESI.NET</Name>
     </ProjectReference>
     <ProjectReference Include="External\WpfHelpers\WpfHelpers.csproj">
