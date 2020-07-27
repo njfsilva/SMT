@@ -26,7 +26,7 @@ namespace SMT
     {
         public static MainWindow AppWindow;
 
-        public const string SMT_VERSION = "SMT_089";
+        public const string SMT_VERSION = "SMT_090";
 
 
         private LogonWindow logonBrowserWindow;
@@ -52,7 +52,7 @@ namespace SMT
 
             InitializeComponent();
 
-            Title = "SMT (Pathos, Crashier Test Dummy : " + SMT_VERSION + ")";
+            Title = "SMT (BugSpray : " + SMT_VERSION + ")";
 
             CheckGitHubVersion();
 
@@ -961,6 +961,32 @@ namespace SMT
                         foreach (char cc in chars)
                         {
                             string search = basesearch + cc;
+                            List<EVEData.JumpBridge> jbl = await c.FindJumpGates(search);
+
+                            foreach (EVEData.JumpBridge jb in jbl)
+                            {
+                                bool found = false;
+
+                                foreach (EVEData.JumpBridge jbr in EVEManager.JumpBridges)
+                                {
+                                    if ((jb.From == jbr.From && jb.To == jbr.To) || (jb.From == jbr.To && jb.To == jbr.From))
+                                    {
+                                        found = true;
+                                    }
+                                }
+
+                                if (!found)
+                                {
+                                    EVEManager.JumpBridges.Add(jb);
+                                }
+                            }
+
+                            Thread.Sleep(2000);
+                        }
+
+                        foreach (char cc in chars)
+                        {
+                            string search = cc+ basesearch;
                             List<EVEData.JumpBridge> jbl = await c.FindJumpGates(search);
 
                             foreach (EVEData.JumpBridge jb in jbl)
