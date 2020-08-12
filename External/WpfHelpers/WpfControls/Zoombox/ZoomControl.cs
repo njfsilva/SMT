@@ -85,7 +85,6 @@ namespace WpfHelpers.WpfControls.Zoombox
 
         public static readonly RoutedEvent ContentDragFinishedEvent = EventManager.RegisterRoutedEvent("ContentDragFinished", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(ZoomControl));
 
-
         public static readonly DependencyProperty ZoomDeltaMultiplierProperty =
             DependencyProperty.Register("ZoomDeltaMultiplier", typeof(double), typeof(ZoomControl),
                 new UIPropertyMetadata(100.0));
@@ -143,7 +142,6 @@ namespace WpfHelpers.WpfControls.Zoombox
             remove { RemoveHandler(ContentDragFinishedEvent, value); }
         }
 
-
         public bool AllowAltZoomBox
         {
             get { return (bool)GetValue(AllowAltZoomBoxProperty); }
@@ -200,7 +198,10 @@ namespace WpfHelpers.WpfControls.Zoombox
         /// </summary>
         public ZoomViewModifierMode ModifierMode
         {
-            get { return (ZoomViewModifierMode)GetValue(ModifierModeProperty); }
+            get
+            {
+                return (ZoomViewModifierMode)GetValue(ModifierModeProperty);
+            }
             set
             {
                 if (AllowPan)
@@ -212,7 +213,10 @@ namespace WpfHelpers.WpfControls.Zoombox
 
         public double TranslateX
         {
-            get { return (double)GetValue(TranslateXProperty); }
+            get
+            {
+                return (double)GetValue(TranslateXProperty);
+            }
             set
             {
                 BeginAnimation(TranslateXProperty, null);
@@ -222,7 +226,10 @@ namespace WpfHelpers.WpfControls.Zoombox
 
         public double TranslateY
         {
-            get { return (double)GetValue(TranslateYProperty); }
+            get
+            {
+                return (double)GetValue(TranslateYProperty);
+            }
             set
             {
                 BeginAnimation(TranslateYProperty, null);
@@ -232,7 +239,10 @@ namespace WpfHelpers.WpfControls.Zoombox
 
         public double Zoom
         {
-            get { return (double)GetValue(ZoomProperty); }
+            get
+            {
+                return (double)GetValue(ZoomProperty);
+            }
             set
             {
                 if (Math.Abs(value - (double)GetValue(ZoomProperty)) < double.Epsilon)
@@ -289,7 +299,10 @@ namespace WpfHelpers.WpfControls.Zoombox
 
         protected ZoomContentPresenter Presenter
         {
-            get { return _presenter; }
+            get
+            {
+                return _presenter;
+            }
             set
             {
                 _presenter = value;
@@ -394,7 +407,6 @@ namespace WpfHelpers.WpfControls.Zoombox
             zc._translateTransform.X = (double)e.NewValue;
             if (!zc._isZooming)
                 zc.Mode = ZoomControlModes.Custom;
-
         }
 
         private static object TranslateY_Coerce(DependencyObject d, object basevalue)
@@ -411,7 +423,6 @@ namespace WpfHelpers.WpfControls.Zoombox
             zc._translateTransform.Y = (double)e.NewValue;
             if (!zc._isZooming)
                 zc.Mode = ZoomControlModes.Custom;
-
         }
 
         private static void Zoom_PropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -477,8 +488,12 @@ namespace WpfHelpers.WpfControls.Zoombox
                 ActualWidth / _presenter.ContentSize.Width,
                 ActualHeight / _presenter.ContentSize.Height);
 
+
             var initialTranslate = GetInitialTranslate();
-            DoZoomAnimation(deltaZoom, initialTranslate.X * deltaZoom, initialTranslate.Y * deltaZoom);
+            initialTranslate.X *= deltaZoom;
+            initialTranslate.Y *= deltaZoom;
+
+            DoZoomAnimation(deltaZoom, initialTranslate.X , initialTranslate.Y );
         }
 
         private void DoZoomToOriginal()
@@ -486,7 +501,12 @@ namespace WpfHelpers.WpfControls.Zoombox
             if (_presenter == null)
                 return;
 
-            var initialTranslate = GetInitialTranslate();
+            //var initialTranslate = GetInitialTranslate();
+
+            Vector initialTranslate = new Vector(); 
+            initialTranslate.X = 80;
+            initialTranslate.Y = 10;
+
             DoZoomAnimation(1.0, initialTranslate.X, initialTranslate.Y);
         }
 
@@ -562,13 +582,14 @@ namespace WpfHelpers.WpfControls.Zoombox
         {
             if (_presenter == null)
                 return new Vector(0.0, 0.0);
+
             var w = _presenter.ContentSize.Width - _presenter.DesiredSize.Width;
             var h = _presenter.ContentSize.Height - _presenter.DesiredSize.Height;
             var tX = -w / 2.0;
             var tY = -h / 2.0;
 
             return new Vector(tX, tY);
-            //return new Vector(0, 0);
+
         }
 
         private void OnMouseDown(MouseButtonEventArgs e, bool isPreview)
@@ -677,7 +698,6 @@ namespace WpfHelpers.WpfControls.Zoombox
             ModifierMode = ZoomViewModifierMode.None;
             PreviewMouseMove -= ZoomControl_PreviewMouseMove;
             ReleaseMouseCapture();
-
 
             RoutedEventArgs newEventArgs = new RoutedEventArgs(ContentDragFinishedEvent);
             RaiseEvent(newEventArgs);
