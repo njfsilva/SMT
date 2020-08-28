@@ -694,6 +694,24 @@ namespace SMT
 
         public bool UseESIForCharacterPositions { get; set; }
 
+
+        private bool m_ShowOfflineCharactersOnMap;
+        public bool ShowOfflineCharactersOnMap 
+        { 
+            get
+            {
+                return m_ShowOfflineCharactersOnMap;
+            }
+            set
+            {
+                m_ShowOfflineCharactersOnMap = value;
+                OnPropertyChanged("ShowOfflineCharactersOnMap");
+            }
+
+
+        }
+
+
         public bool ShowCharacterNamesOnMap
         {
             get
@@ -722,6 +740,7 @@ namespace SMT
             }
         }
 
+
         private bool m_DisableJumpBridgesPathAnimation;
         private bool m_DisableRoutePathAnimation;
 
@@ -744,6 +763,37 @@ namespace SMT
                 OnPropertyChanged("DisableRoutePathAnimation");
             }
         }
+
+
+        private bool m_ShowTrigInvasions = true;
+        private bool m_ShowOnlyFinalLiminality = false;
+
+        public bool ShowTrigInvasions
+        {
+            get
+            {
+                return m_ShowTrigInvasions;
+            }
+            set
+            {
+                m_ShowTrigInvasions = value;
+                OnPropertyChanged("ShowTrigInvasions");
+            }
+        }
+
+        public bool ShowOnlyFinalLiminality
+        {
+            get
+            {
+                return m_ShowOnlyFinalLiminality;
+            }
+            set
+            {
+                m_ShowOnlyFinalLiminality = value;
+                OnPropertyChanged("ShowOnlyFinalLiminality");
+            }
+        }
+
 
         public void SetDefaultColours()
         {
@@ -816,12 +866,15 @@ namespace SMT
             SOVBasedITCU = true;
             UseESIForCharacterPositions = true;
             ShowCharacterNamesOnMap = true;
+            ShowOfflineCharactersOnMap = true;
             ShowIhubVunerabilities = true;
 
             ShowJoveObservatories = true;
 
             UniverseMaxZoomDisplaySystems = 1.3f;
             UniverseMaxZoomDisplaySystemsText = 2.0f;
+
+
 
             WarningRange = 5;
         }
