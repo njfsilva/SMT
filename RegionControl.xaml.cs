@@ -497,6 +497,8 @@ namespace SMT
                     Canvas.SetTop(TheraShape, ms.LayoutY - (SYSTEM_SHAPE_OFFSET + 3));
                     Canvas.SetZIndex(TheraShape, SYSTEM_Z_INDEX - 3);
                     MainCanvas.Children.Add(TheraShape);
+
+
                 }
             }
         }
@@ -509,6 +511,7 @@ namespace SMT
             }
 
             Brush ActiveSovFightBrush = new SolidColorBrush(Colors.DarkRed);
+
 
             foreach (SOVCampaign sc in EM.ActiveSovCampaigns)
             {
@@ -525,13 +528,13 @@ namespace SMT
                         Stretch = Stretch.Uniform,
                         IsHitTestVisible = false,
                     };
-
                     SovFightLogo.IsHitTestVisible = false;
 
                     Canvas.SetLeft(SovFightLogo, ms.LayoutX - SYSTEM_SHAPE_OFFSET + 5);
                     Canvas.SetTop(SovFightLogo, ms.LayoutY - SYSTEM_SHAPE_OFFSET + 5);
                     Canvas.SetZIndex(SovFightLogo, SYSTEM_Z_INDEX + 5);
                     MainCanvas.Children.Add(SovFightLogo);
+                    DynamicMapElements.Add(SovFightLogo);
 
                     if (sc.IsActive || sc.Type == "IHub")
                     {
@@ -546,6 +549,7 @@ namespace SMT
                         Canvas.SetTop(activeSovFightShape, ms.LayoutY - (SYSTEM_SHAPE_OFFSET + 9));
                         Canvas.SetZIndex(activeSovFightShape, SYSTEM_Z_INDEX - 3);
                         MainCanvas.Children.Add(activeSovFightShape);
+                        DynamicMapElements.Add(activeSovFightShape);
                     }
                 }
             }
@@ -2307,8 +2311,6 @@ namespace SMT
 
                 if ((ShowSovOwner) && SystemAlliance != 0 && EM.AllianceIDToName.Keys.Contains(SystemAlliance))
                 {
-                    Label sysRegionText = new Label();
-
                     string allianceName = EM.GetAllianceName(SystemAlliance);
                     string allianceTicker = EM.GetAllianceTicker(SystemAlliance);
                     string coalitionName = string.Empty;
@@ -2330,44 +2332,10 @@ namespace SMT
                     {
                         AlliancesKeyList.Add(SystemAlliance);
                     }
-
-                    /*
-
-                    sysRegionText.Content = content;
-                    sysRegionText.FontSize = SYSTEM_TEXT_TEXT_SIZE;
-                    sysText.FontSize = MapConf.ActiveColourScheme.SystemTextSize;
-
-                    Canvas.SetLeft(sysRegionText, system.LayoutX + SYSTEM_REGION_TEXT_X_OFFSET);
-                    Canvas.SetTop (sysRegionText, system.LayoutY + SYSTEM_REGION_TEXT_Y_OFFSET + 9);
-                    Canvas.SetZIndex(sysRegionText, SYSTEM_Z_INDEX);
-
-                    MainCanvas.Children.Add(sysRegionText);
-
-                    regionMarkerOffset += SYSTEM_TEXT_TEXT_SIZE;
-
-                    if(!AlliancesKeyList.Contains(system.ActualSystem.SOVAlliance))
-                    {
-                        AlliancesKeyList.Add(system.ActualSystem.SOVAlliance);
-                    }
-                    */
                 }
 
                 if (system.OutOfRegion)
                 {
-                    /*
-                    Label sysRegionText = new Label();
-                    sysRegionText.Content = "(" + system.Region + ")";
-                    sysRegionText.FontSize = SYSTEM_TEXT_TEXT_SIZE;
-                    sysRegionText.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.OutRegionSystemTextColour);
-
-                    Canvas.SetLeft(sysRegionText, system.LayoutX + SYSTEM_REGION_TEXT_X_OFFSET);
-                    Canvas.SetTop(sysRegionText, system.LayoutY + regionMarkerOffset);
-                    Canvas.SetZIndex(sysRegionText, SYSTEM_Z_INDEX);
-
-                    MainCanvas.Children.Add(sysRegionText);
-
-                    */
-
                     if (SystemSubText != string.Empty)
                     {
                         SystemSubText += "\n";
@@ -2395,7 +2363,10 @@ namespace SMT
                 {
                     Label sysSubText = new Label();
                     sysSubText.Content = SystemSubText;
-                    sysSubText.FontSize = SYSTEM_TEXT_TEXT_SIZE;
+                    if(MapConf.ActiveColourScheme.SystemSubTextSize > 0)
+                    {
+                        sysSubText.FontSize = MapConf.ActiveColourScheme.SystemSubTextSize;
+                    }
                     sysSubText.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.InRegionSystemTextColour);
                     sysSubText.IsHitTestVisible = false;
 
@@ -2483,7 +2454,10 @@ namespace SMT
                             jbOutofSystemBlob.Fill = jbOutofSystemBlob.Stroke;
 
                             jbOutofRegionText.Content = $"{to.Name}\n({to.Region})";
-                            jbOutofRegionText.FontSize = SYSTEM_TEXT_TEXT_SIZE + 1;
+                            if (MapConf.ActiveColourScheme.SystemSubTextSize > 2)
+                            {
+                                jbOutofRegionText.FontSize = MapConf.ActiveColourScheme.SystemSubTextSize;
+                            }
                             jbOutofRegionText.IsHitTestVisible = false;
 
                             Canvas.SetLeft(jbOutofRegionText, from.LayoutX - 20);
