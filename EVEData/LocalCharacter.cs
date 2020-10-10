@@ -17,20 +17,22 @@ namespace SMT.EVEData
 
     public class LocalCharacter : Character, INotifyPropertyChanged
     {
+        public static readonly string SaveVersion = "02";
+
         [XmlIgnoreAttribute]
         public object ActiveRouteLock;
 
         [XmlIgnoreAttribute]
         public SemaphoreSlim UpdateLock;
 
-        public static readonly string SaveVersion = "02";
-
         [XmlIgnoreAttribute]
-        public bool warningSystemsNeedsUpdate = false;
+        public bool warningSystemsNeedsUpdate;
 
-        private bool esiRouteNeedsUpdate = false;
+        private bool esiRouteNeedsUpdate;
 
-        private bool esiRouteUpdating = false;
+        private bool esiRouteUpdating;
+
+        private bool esiSendRouteClear;
 
         /// <summary>
         /// The name of the system this character is currently in
@@ -113,6 +115,9 @@ namespace SMT.EVEData
         [XmlIgnoreAttribute]
         public ObservableCollection<Navigation.RoutePoint> ActiveRoute { get; set; }
 
+        public bool DangerzoneActive { get; set; }
+        public bool DeepSearchEnabled { get; set; }
+
         /// <summary>
         /// Gets or sets the character structure dictionary
         /// </summary>
@@ -154,6 +159,7 @@ namespace SMT.EVEData
         [XmlIgnoreAttribute]
         public Fleet FleetInfo { get; set; }
 
+        public bool IsOnline { get; set; }
         public SerializableDictionary<String, ObservableCollection<Structure>> KnownStructures { get; set; }
 
         [XmlIgnoreAttribute]
@@ -166,9 +172,6 @@ namespace SMT.EVEData
         /// Gets or sets the The location of the local file bound to this session's "Local" chat channel
         /// </summary>
         public string LocalChatFile { get; set; }
-
-
-        public bool IsOnline { get; set; }
 
         /// <summary>
         /// Gets or sets the location of the character
@@ -239,8 +242,6 @@ namespace SMT.EVEData
             }
         }
 
-        public bool DeepSearchEnabled { get; set; }
-
         public int WarningSystemRange { get; set; }
 
         public List<string> WarningSystems { get; set; }
@@ -271,6 +272,17 @@ namespace SMT.EVEData
 
             routeNeedsUpdate = true;
             esiRouteNeedsUpdate = true;
+        }
+
+        public void ClearAllWaypoints()
+        {
+            lock (ActiveRouteLock)
+            {
+                ActiveRoute.Clear();
+                Waypoints.Clear();
+            }
+            routeNeedsUpdate = true;
+            esiSendRouteClear = true;
         }
 
         public async Task<List<JumpBridge>> FindJumpGates(string JumpBridgeFilterString = " » ")
@@ -330,12 +342,6 @@ namespace SMT.EVEData
             UpdateLock.Release();
 
             return jbl;
-        }
-
-        public void RecalcRoute()
-        {
-            routeNeedsUpdate = true;
-            esiRouteNeedsUpdate = true;
         }
 
         public string GetWayPointText()
@@ -410,6 +416,12 @@ namespace SMT.EVEData
             return ClipboardText;
         }
 
+        public void RecalcRoute()
+        {
+            routeNeedsUpdate = true;
+            esiRouteNeedsUpdate = true;
+        }
+
         /// <summary>
         /// To String
         /// </summary>
@@ -434,18 +446,18 @@ namespace SMT.EVEData
                 TimeSpan ts = ESIAccessTokenExpiry - DateTime.Now;
                 if (ts.Minutes < 1)
                 {
-                    RefreshAccessToken().Wait();
-                    UpdateInfoFromESI().Wait();
+                    await RefreshAccessToken().ConfigureAwait(false);
+                    await UpdateInfoFromESI().ConfigureAwait(false);
                 }
 
                 if (EveManager.Instance.UseESIForCharacterPositions)
                 {
-                    UpdatePositionFromESI().Wait();
+                    await UpdatePositionFromESI().ConfigureAwait(false);
                 }
 
-                UpdateOnlineStatus().Wait();
+                await UpdateOnlineStatus().ConfigureAwait(false);
 
-                UpdateFleetInfo().Wait();
+                await UpdateFleetInfo().ConfigureAwait(false);
 
                 if (routeNeedsUpdate)
                 {
@@ -510,9 +522,8 @@ namespace SMT.EVEData
                 ESILinked = true;
                 ESIAuthData = acd;
             }
-            catch(Exception ex)
-            { 
-
+            catch (Exception ex)
+            {
             }
         }
 
@@ -521,6 +532,29 @@ namespace SMT.EVEData
         /// </summary>
         private async void UpdateActiveRoute()
         {
+            if (esiSendRouteClear)
+            {
+                esiSendRouteClear = false;
+                esiRouteNeedsUpdate = false;
+
+                System s = EveManager.Instance.GetEveSystem(Location);
+                if (s != null)
+                {
+                    ESI.NET.EsiClient esiClient = EveManager.Instance.ESIClient;
+                    esiClient.SetCharacterData(ESIAuthData);
+
+                    ESI.NET.EsiResponse<string> esr = await esiClient.UserInterface.Waypoint(s.ID, false, true);
+                    if (EVEData.ESIHelpers.ValidateESICall<string>(esr))
+                    {
+                        // failed to clear route
+                    }
+                }
+
+                return;
+            }
+
+
+
             if (Waypoints.Count == 0)
             {
                 return;
@@ -840,6 +874,30 @@ namespace SMT.EVEData
         }
 
         /// <summary>
+        /// Update the characters logged on status from ESI
+        /// </summary>
+        private async Task UpdateOnlineStatus()
+        {
+            if (ID == 0 || !ESILinked || ESIAuthData == null)
+            {
+                return;
+            }
+
+            try
+            {
+                ESI.NET.EsiClient esiClient = EveManager.Instance.ESIClient;
+                esiClient.SetCharacterData(ESIAuthData);
+                ESI.NET.EsiResponse<ESI.NET.Models.Location.Activity> esr = await esiClient.Location.Online();
+
+                if (ESIHelpers.ValidateESICall<ESI.NET.Models.Location.Activity>(esr))
+                {
+                    IsOnline = esr.Data.Online;
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Update the characters position from ESI (will override the position read from any log files
         /// </summary>
         private async Task UpdatePositionFromESI()
@@ -874,42 +932,13 @@ namespace SMT.EVEData
                         Region = "";
                     }
                 }
-
-
-
             }
             catch { }
         }
-
-
-        /// <summary>
-        /// Update the characters logged on status from ESI
-        /// </summary>
-        private async Task UpdateOnlineStatus()
-        {
-            if (ID == 0 || !ESILinked || ESIAuthData == null)
-            {
-                return;
-            }
-
-            try
-            {
-                ESI.NET.EsiClient esiClient = EveManager.Instance.ESIClient;
-                esiClient.SetCharacterData(ESIAuthData);
-                ESI.NET.EsiResponse<ESI.NET.Models.Location.Activity> esr = await esiClient.Location.Online();
-
-                if (ESIHelpers.ValidateESICall<ESI.NET.Models.Location.Activity>(esr))
-                {
-                    IsOnline = esr.Data.Online;
-                }
-            }
-            catch { }
-        }
-
 
         private void UpdateWarningSystems()
         {
-            if (!string.IsNullOrEmpty(Location) && WarningSystemRange > 0)
+            if (!string.IsNullOrEmpty(Location) && WarningSystemRange > 0 && DangerzoneActive)
             {
                 WarningSystems = Navigation.GetSystemsXJumpsFrom(new List<string>(), Location, WarningSystemRange);
             }
