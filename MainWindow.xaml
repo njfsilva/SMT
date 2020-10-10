@@ -1,4 +1,4 @@
-﻿<Window
+<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -157,7 +157,7 @@
                             <xcadl:LayoutAnchorable Title="Characters" CanClose="False" CanAutoHide="True" CanHide="False" ContentId="CharactersContentID" AutoHideMinHeight="200" AutoHideMinWidth="280">
                                 <ScrollViewer Background="{DynamicResource ButtonBackground}">
                                     <StackPanel>
-                                        <DataGrid  x:Name="CharactersList" Grid.Row="1" AreRowDetailsFrozen="True" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" MouseDoubleClick="CharactersList_MouseDoubleClick" HeadersVisibility="Column" SelectionUnit="FullRow" GridLinesVisibility="None" IsSynchronizedWithCurrentItem="False">
+                                        <DataGrid  x:Name="CharactersList" Grid.Row="1" AreRowDetailsFrozen="True" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="False" MouseDoubleClick="CharactersList_MouseDoubleClick" HeadersVisibility="Column" SelectionUnit="FullRow" GridLinesVisibility="None" IsSynchronizedWithCurrentItem="False">
 
                                             <DataGrid.CellStyle>
                                                 <Style TargetType="{x:Type DataGridCell}">
@@ -170,7 +170,6 @@
                                                         <DataTrigger Binding="{Binding IsOnline}" Value="True">
                                                             <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
                                                         </DataTrigger>
-
                                                     </Style.Triggers>
                                                 </Style>
                                             </DataGrid.CellStyle>
@@ -182,9 +181,17 @@
                                             </DataGrid.ContextMenu>
 
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" CanUserReorder="False" Width="*" />
-                                                <DataGridTextColumn Header="Location" Binding="{Binding Location}" CanUserReorder="False" Width="*" />
-                                                <DataGridTextColumn Header="Region" Binding="{Binding Region}" CanUserReorder="False" Width="*" />
+                                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" CanUserReorder="False" Width="*" IsReadOnly="True" />
+                                                <DataGridTextColumn Header="Location" Binding="{Binding Location}" CanUserReorder="False" Width="*" IsReadOnly="True" />
+                                                <DataGridTextColumn Header="Region" Binding="{Binding Region}" CanUserReorder="False" Width="*" IsReadOnly="True" />
+                                                <DataGridCheckBoxColumn Header="Dangerzone"  Binding="{Binding DangerzoneActive}"  CanUserReorder="False" Width="*" IsReadOnly="False">
+                                                    <DataGridCheckBoxColumn.CellStyle>
+                                                        <Style>
+                                                            <EventSetter Event="CheckBox.Checked" Handler="DangerzoneChanged" />
+                                                            <EventSetter Event="CheckBox.Unchecked" Handler="DangerzoneChanged" />
+                                                        </Style>
+                                                    </DataGridCheckBoxColumn.CellStyle>
+                                                </DataGridCheckBoxColumn>
                                             </DataGrid.Columns>
                                         </DataGrid>
                                         <CheckBox Content="Show Characters On Map" IsChecked="{Binding MapConf.ShowCharacterNamesOnMap}" Margin="3" />
@@ -394,8 +401,6 @@
                                 </ScrollViewer>
                             </xcadl:LayoutAnchorable>
 
-
-
                             <xcadl:LayoutAnchorable Title="Fleet" CanClose="False" CanAutoHide="True" CanHide="False" ContentId="FleetContentID" AutoHideMinHeight="200" AutoHideMinWidth="280">
                                 <ScrollViewer Background="{DynamicResource ButtonBackground}">
                                     <DataGrid  x:Name="FleetMembersList"  Grid.Row="1" AreRowDetailsFrozen="True" AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" MouseDoubleClick="CharactersList_MouseDoubleClick" HeadersVisibility="Column" SelectionUnit="FullRow" GridLinesVisibility="None" IsSynchronizedWithCurrentItem="False">
@@ -468,7 +473,6 @@
                         <xcadl:LayoutDocument CanClose="False" CanFloat="True" ContentId="FullUniverseViewID" Title="Universe">
                             <local:UniverseControl x:Name="UniverseUC" />
                         </xcadl:LayoutDocument>
-
                     </xcadl:LayoutDocumentPane>
                 </xcadl:LayoutPanel>
             </xcadl:LayoutRoot>
