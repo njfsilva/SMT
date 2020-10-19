@@ -19,7 +19,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
-using System.Web.Services;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -805,10 +804,6 @@ namespace SMT.EVEData
 
 
 
-
-
-
-
             // now create the voronoi regions
             foreach (MapRegion mr in Regions)
             {
@@ -1176,7 +1171,7 @@ namespace SMT.EVEData
         public string GetESILogonURL(string challengeCode)
         {
             string URL = ESIClient.SSO.CreateAuthenticationUrl(ESIScopes, VersionStr, challengeCode);
-            return HttpUtility.UrlPathEncode(URL);
+            return URL;
         }
 
         /// <summary>
@@ -1430,7 +1425,7 @@ namespace SMT.EVEData
         {
             JumpBridges = new ObservableCollection<JumpBridge>();
 
-            string dataFilename = SaveDataVersionFolder + @"\JumpBridges.dat";
+            string dataFilename = SaveDataRootFolder + @"\JumpBridges_" + JumpBridge.SaveVersion + ".dat";
             if (!File.Exists(dataFilename))
             {
                 return;
@@ -1572,7 +1567,9 @@ namespace SMT.EVEData
             Utils.SerializeToDisk<SerializableDictionary<long, string>>(AllianceIDToName, SaveDataVersionFolder + @"\AllianceNames.dat");
             Utils.SerializeToDisk<SerializableDictionary<long, string>>(AllianceIDToTicker, SaveDataVersionFolder + @"\AllianceTickers.dat");
 
-            Utils.SerializeToDisk<ObservableCollection<JumpBridge>>(JumpBridges, SaveDataVersionFolder + @"\JumpBridges.dat");
+
+            string jbFileName = SaveDataRootFolder + @"\JumpBridges_" + JumpBridge.SaveVersion + ".dat";
+            Utils.SerializeToDisk<ObservableCollection<JumpBridge>>(JumpBridges, jbFileName);
         }
 
         /// <summary>
@@ -2354,19 +2351,26 @@ namespace SMT.EVEData
         /// </summary>
         private async void StartUpdateJumpsFromESI()
         {
-            ESI.NET.EsiResponse<List<ESI.NET.Models.Universe.Jumps>> esr = await ESIClient.Universe.Jumps();
-            if (ESIHelpers.ValidateESICall<List<ESI.NET.Models.Universe.Jumps>>(esr))
+            try
             {
-                foreach (ESI.NET.Models.Universe.Jumps j in esr.Data)
+                ESI.NET.EsiResponse<List<ESI.NET.Models.Universe.Jumps>> esr = await ESIClient.Universe.Jumps();
+                if (ESIHelpers.ValidateESICall<List<ESI.NET.Models.Universe.Jumps>>(esr))
                 {
-                    EVEData.System es = GetEveSystemFromID(j.SystemId);
-                    if (es != null)
+                    foreach (ESI.NET.Models.Universe.Jumps j in esr.Data)
                     {
-                        es.JumpsLastHour = j.ShipJumps;
+                        EVEData.System es = GetEveSystemFromID(j.SystemId);
+                        if (es != null)
+                        {
+                            es.JumpsLastHour = j.ShipJumps;
+                        }
                     }
                 }
+
             }
-        }
+            catch
+            {
+            }
+       }
 
         /// <summary>
         /// Start the ESI download for the kill info
