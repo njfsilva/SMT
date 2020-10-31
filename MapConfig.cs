@@ -45,6 +45,7 @@ namespace SMT
 
         private int m_MaxIntelSeconds;
 
+        private bool m_showOfflineCharactersOnMap = true;
         private bool m_ShowCharacterNamesOnMap = true;
         private bool m_ShowCoalition;
 
@@ -55,7 +56,6 @@ namespace SMT
         private bool m_ShowJoveObservatories;
         private bool m_ShowNegativeRattingDelta;
 
-        private bool m_ShowOfflineCharactersOnMap;
         private bool m_ShowOnlyFinalLiminality;
         private bool m_ShowRattingDataAsDelta;
 
@@ -88,7 +88,8 @@ namespace SMT
 
         private int m_UpcomingSovMinutes;
 
-        private int m_WarningRange = 5;
+        private int m_ZkillExpireTimeMinutes;
+
 
         public MapConfig()
         {
@@ -305,6 +306,22 @@ namespace SMT
             }
         }
 
+
+        public bool ShowOfflineCharactersOnMap
+        {
+            get
+            {
+                return m_showOfflineCharactersOnMap;
+            }
+            set
+            {
+                m_showOfflineCharactersOnMap = value;
+                OnPropertyChanged("ShowOfflineCharactersOnMap");
+            }
+        }
+
+
+
         [Category("SOV")]
         [DisplayName("Show Coalition")]
         public bool ShowCoalition
@@ -389,18 +406,7 @@ namespace SMT
             }
         }
 
-        public bool ShowOfflineCharactersOnMap
-        {
-            get
-            {
-                return m_ShowOfflineCharactersOnMap;
-            }
-            set
-            {
-                m_ShowOfflineCharactersOnMap = value;
-                OnPropertyChanged("ShowOfflineCharactersOnMap");
-            }
-        }
+
 
         public bool ShowOnlyFinalLiminality
         {
@@ -742,40 +748,32 @@ namespace SMT
             }
         }
 
-        public bool UseESIForCharacterPositions { get; set; }
 
-        [Category("Intel")]
-        [DisplayName("Warning Range")]
-        public int WarningRange
+
+        public int ZkillExpireTimeMinutes
         {
             get
             {
-                return m_WarningRange;
+                return m_ZkillExpireTimeMinutes;
             }
+
             set
             {
-                // clamp to 1 miniumum
-                if (value > 0)
+                m_ZkillExpireTimeMinutes = value;
+                if (m_ZkillExpireTimeMinutes < 5)
                 {
-                    m_WarningRange = value;
-                }
-                else
-                {
-                    m_WarningRange = 1;
+                    m_UpcomingSovMinutes = 5;
                 }
 
-                if (value < 10)
-                {
-                    m_WarningRange = value;
-                }
-                else
-                {
-                    m_WarningRange = 9;
-                }
-
-                OnPropertyChanged("WarningRange");
+                OnPropertyChanged("ZkillExpireTimeMinutes");
             }
         }
+
+        
+
+        public bool UseESIForCharacterPositions { get; set; }
+
+ 
 
         public void SetDefaultColours()
         {
@@ -814,6 +812,7 @@ namespace SMT
                 RegionGateColour = Color.FromRgb(128, 64, 64),
                 SelectedSystemColour = Color.FromRgb(255, 255, 255),
                 CharacterHighlightColour = Color.FromRgb(170, 130, 180),
+                CharacterOfflineTextColour = Colors.DarkGray,
                 CharacterTextColour = Color.FromRgb(240, 190, 10),
                 CharacterTextSize = 11,
                 SystemTextSize = 12,
@@ -847,6 +846,7 @@ namespace SMT
             ShowSystemPopup = true;
             MaxIntelSeconds = 120;
             UpcomingSovMinutes = 30;
+            ZkillExpireTimeMinutes = 30;
             AlwaysOnTop = false;
             ShowToolBox = true;
             ShowZKillData = true;
@@ -866,7 +866,6 @@ namespace SMT
             UniverseMaxZoomDisplaySystems = 1.3f;
             UniverseMaxZoomDisplaySystemsText = 2.0f;
 
-            WarningRange = 5;
         }
 
         protected void OnPropertyChanged(string name)
