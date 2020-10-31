@@ -26,7 +26,7 @@ namespace SMT
     /// </summary>
     public partial class MainWindow : Window
     {
-        public const string SMT_VERSION = "SMT_094";
+        public const string SMT_VERSION = "SMT_095";
         public static MainWindow AppWindow;
         private LogonWindow logonBrowserWindow;
 
@@ -50,7 +50,7 @@ namespace SMT
 
             InitializeComponent();
 
-            Title = "SMT (Blue Falcon Patrol : " + SMT_VERSION + ")";
+            Title = "SMT (Dr dont touch it : " + SMT_VERSION + ")";
 
             CheckGitHubVersion();
 
@@ -104,7 +104,6 @@ namespace SMT
             // Create the main EVE manager
 
             EVEManager = new EVEData.EveManager(SMT_VERSION);
-            EVEManager.WarningSystemRange = MapConf.WarningRange;
             EVEData.EveManager.Instance = EVEManager;
 
             EVEManager.UseESIForCharacterPositions = MapConf.UseESIForCharacterPositions;
@@ -123,10 +122,14 @@ namespace SMT
             EVEManager.SetupIntelWatcher();
             RawIntelBox.ItemsSource = EVEManager.IntelDataList;
 
+            EVEManager.ZKillFeed.KillExpireTimeMinutes = MapConf.ZkillExpireTimeMinutes;
+
             // load jump bridge data
             EVEManager.LoadJumpBridgeData();
             EVEManager.UpdateESIUniverseData();
             EVEManager.InitNavigation();
+
+            EVEManager.LocalCharacters.CollectionChanged += LocalCharacters_CollectionChanged;
 
             CharactersList.ItemsSource = EVEManager.LocalCharacters;
             CurrentActiveCharacterCombo.ItemsSource = EVEManager.LocalCharacters;
@@ -209,10 +212,10 @@ namespace SMT
 
             foreach (EVEData.LocalCharacter lc in EVEManager.LocalCharacters)
             {
-                lc.WarningSystemRange = MapConf.WarningRange;
                 lc.Location = "";
             }
         }
+
 
         /// <summary>
         /// Anom Manager
@@ -238,18 +241,14 @@ namespace SMT
             CollectionViewSource.GetDefaultView(SovCampaignList.ItemsSource).Refresh();
         }
 
-        private void DangerzoneChanged(object sender, RoutedEventArgs e)
+
+        private void LocalCharacters_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            LocalCharacter selected = (LocalCharacter)CharactersList.SelectedItem;
-            if (selected == null) return;
-            var lc = EVEManager.LocalCharacters.FirstOrDefault(x => x.Name == selected.Name);
-            if (lc == null) return;
-            var idx = EVEManager.LocalCharacters.IndexOf(lc);
-            CheckBox cb = (CheckBox)((DataGridCell)sender).Content;
-            lc.DangerzoneActive = (bool)cb.IsChecked;
-            lc.warningSystemsNeedsUpdate = true;
-            EVEManager.LocalCharacters[idx] = lc;
+            CollectionViewSource.GetDefaultView(CharactersList.ItemsSource).Refresh();
+
         }
+
+
 
         private void Exit_MenuItem_Click(object sender, RoutedEventArgs e)
         {
@@ -435,15 +434,6 @@ namespace SMT
                 }
             }
 
-            if (e.PropertyName == "WarningRange")
-            {
-                EVEManager.WarningSystemRange = MapConf.WarningRange;
-                foreach (EVEData.LocalCharacter lc in EVEManager.LocalCharacters)
-                {
-                    lc.WarningSystemRange = EVEManager.WarningSystemRange;
-                    lc.warningSystemsNeedsUpdate = true;
-                }
-            }
 
             if (e.PropertyName == "ShowZKillData")
             {
@@ -478,7 +468,7 @@ namespace SMT
             }
         }
 
-        private void OnCharacterSelectionChanged()
+        public void OnCharacterSelectionChanged()
         {
             CollectionViewSource.GetDefaultView(ZKBFeed.ItemsSource).Refresh();
         }
@@ -645,6 +635,12 @@ namespace SMT
         /// </summary>
         private void btn_AddCharacter_Click(object sender, RoutedEventArgs e)
         {
+            AddCharacter();
+        }
+
+
+        public void AddCharacter()
+        { 
             if (logonBrowserWindow != null)
             {
                 logonBrowserWindow.Close();
@@ -654,6 +650,8 @@ namespace SMT
             logonBrowserWindow.Owner = this;
             logonBrowserWindow.ShowDialog();
         }
+
+
 
         private void CharactersList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -784,7 +782,7 @@ namespace SMT
                     {
                         foreach (EVEData.LocalCharacter lc in EVEManager.LocalCharacters)
                         {
-                            if (lc.WarningSystems != null && lc.DangerzoneActive)
+                            if (lc.WarningSystems != null && lc.DangerZoneActive)
                             {
                                 foreach (string ls in lc.WarningSystems)
                                 {
@@ -1339,6 +1337,17 @@ namespace SMT
         }
 
         #endregion Anoms
+
+        private void Characters_MenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            CharactersWindow charactersWindow = new CharactersWindow();
+            charactersWindow.characterLV.ItemsSource = EVEManager.LocalCharacters;
+
+            charactersWindow.Owner = this;
+
+            charactersWindow.ShowDialog();
+
+        }
     }
 
     /// <summary>

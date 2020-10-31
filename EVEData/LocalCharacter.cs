@@ -4,12 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using System.Xml.Serialization;
+using System.Windows.Media.Imaging;
 
 namespace SMT.EVEData
 {
@@ -42,6 +45,8 @@ namespace SMT.EVEData
         private RoutingMode m_NavigationMode;
 
         private bool m_UseAnsiblexGates;
+
+        private bool m_isOnline;
 
         /// <summary>
         /// Does the route need updating
@@ -86,7 +91,14 @@ namespace SMT.EVEData
             UpdateLock = new SemaphoreSlim(1);
 
             CorporationID = -1;
+            CorporationName = null;
+            CorporationTicker = null;
             AllianceID = -1;
+            AllianceName = null;
+            AllianceTicker = null;
+
+            DangerZoneRange = 5;
+
             DockableStructures = new Dictionary<string, List<StructureIDs.StructureIdData>>();
 
             UseAnsiblexGates = true;
@@ -119,7 +131,7 @@ namespace SMT.EVEData
         [XmlIgnoreAttribute]
         public ObservableCollection<Navigation.RoutePoint> ActiveRoute { get; set; }
 
-        public bool DangerzoneActive { get; set; }
+        public bool DangerZoneActive { get; set; }
         public bool DeepSearchEnabled { get; set; }
 
         /// <summary>
@@ -163,7 +175,19 @@ namespace SMT.EVEData
         [XmlIgnoreAttribute]
         public Fleet FleetInfo { get; set; }
 
-        public bool IsOnline { get; set; }
+        public bool IsOnline 
+        { 
+            get
+            {
+                return m_isOnline;
+            }
+            set
+            {
+                m_isOnline = value;
+                OnPropertyChanged("IsOnline");
+            }
+        }
+
         public SerializableDictionary<String, ObservableCollection<Structure>> KnownStructures { get; set; }
 
         [XmlIgnoreAttribute]
@@ -215,6 +239,7 @@ namespace SMT.EVEData
 
                 m_NavigationMode = value;
                 routeNeedsUpdate = true;
+                OnPropertyChanged("NavigationMode");
             }
         }
 
@@ -246,9 +271,20 @@ namespace SMT.EVEData
             }
         }
 
-        public int WarningSystemRange { get; set; }
+        public int DangerZoneRange { get; set; } 
 
+        [XmlIgnoreAttribute]
         public List<string> WarningSystems { get; set; }
+
+
+
+
+        [XmlIgnoreAttribute]
+        public BitmapImage Portrait { get; set; }
+
+
+
+
 
         /// <summary>
         /// Gets or sets the current list of Waypoints
@@ -509,7 +545,9 @@ namespace SMT.EVEData
 
                     ssoErrorCount++;
 
-                    if(ssoErrorCount > 10 )
+                    Thread.Sleep(10000);
+
+                    if(ssoErrorCount > 50 )
                     {
                         // we have a valid refresh token BUT it failed to auth; we need to force
                         // a reauth
@@ -755,8 +793,11 @@ namespace SMT.EVEData
                                 }), DispatcherPriority.Normal);
                             }
 
+                            EVEData.System es = EveManager.Instance.GetEveSystemFromID(esifm.SolarSystemId);
+
                             fm.Name = EveManager.Instance.GetCharacterName(esifm.CharacterId);
-                            fm.Location = EveManager.Instance.GetEveSystemNameFromID(esifm.SolarSystemId);
+                            fm.Location = es.Name;
+                            fm.Region = es.Region;
                             fm.CharacterID = esifm.CharacterId;
                             if (EveManager.Instance.ShipTypes.ContainsKey(esifm.ShipTypeId.ToString()))
                             {
@@ -808,7 +849,7 @@ namespace SMT.EVEData
         /// <summary>
         /// Update the character info from the ESI data if linked
         /// </summary>
-        private async Task UpdateInfoFromESI()
+        public async Task UpdateInfoFromESI()
         {
             if (ID == 0 || !ESILinked || ESIAuthData == null)
             {
@@ -878,6 +919,53 @@ namespace SMT.EVEData
                     }
                     while (page < maxPageCount);
                 }
+
+                // get the character portrait
+                string characterPortrait = EveManager.Instance.SaveDataRootFolder + "\\Portraits\\" + ID + ".png";
+                if(!File.Exists(characterPortrait))
+                {
+                    ESI.NET.EsiResponse<ESI.NET.Models.Images> esri = await esiClient.Character.Portrait((int)ID);
+                    if(esri.Data != null)
+                    {
+                        WebClient webClient = new WebClient();
+                        webClient.DownloadFile(esri.Data.x128, characterPortrait);
+                    }
+                }
+
+                Application.Current.Dispatcher.Invoke((Action)(() =>
+                {
+                    Uri imageLoc = new Uri(characterPortrait);
+                    Portrait = new BitmapImage(imageLoc);
+                }), DispatcherPriority.Normal, null);
+                
+                //get the corp info
+                if(CorporationID != -1)
+                {
+                    ESI.NET.EsiResponse<ESI.NET.Models.Corporation.Corporation> esrc = await esiClient.Corporation.Information((int)CorporationID);
+                    if(esrc.Data != null)
+                    {
+                        CorporationName = esrc.Data.Name;
+                        CorporationTicker = esrc.Data.Ticker;
+                    }
+                }
+
+                //get the Alliance info
+                if (AllianceID > 0)
+                {
+                    ESI.NET.EsiResponse<ESI.NET.Models.Alliance.Alliance> esra = await esiClient.Alliance.Information((int)AllianceID);
+                    if (esra.Data != null)
+                    {
+                        AllianceName = esra.Data.Name;
+                        AllianceTicker = esra.Data.Ticker;
+                    }
+                }
+                else
+                {
+                    AllianceName = null;
+                    AllianceTicker = null;
+                }
+
+
             }
             catch (Exception)
             {
@@ -951,9 +1039,9 @@ namespace SMT.EVEData
 
         private void UpdateWarningSystems()
         {
-            if (!string.IsNullOrEmpty(Location) && WarningSystemRange > 0 && DangerzoneActive)
+            if (!string.IsNullOrEmpty(Location) && DangerZoneRange > 0 && DangerZoneActive)
             {
-                WarningSystems = Navigation.GetSystemsXJumpsFrom(new List<string>(), Location, WarningSystemRange);
+                WarningSystems = Navigation.GetSystemsXJumpsFrom(new List<string>(), Location, DangerZoneRange);
             }
         }
     }
