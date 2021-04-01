@@ -45,6 +45,12 @@ namespace SMT
         private System.Windows.Media.Imaging.BitmapImage edencomLogoImage;
         private System.Windows.Media.Imaging.BitmapImage fightImage;
         private System.Windows.Media.Imaging.BitmapImage joveLogoImage;
+        private System.Windows.Media.Imaging.BitmapImage stormImageBase;
+        private System.Windows.Media.Imaging.BitmapImage stormImageEM;
+        private System.Windows.Media.Imaging.BitmapImage stormImageExp;
+        private System.Windows.Media.Imaging.BitmapImage stormImageKin;
+        private System.Windows.Media.Imaging.BitmapImage stormImageTherm;
+
         private EVEData.EveManager.JumpShip jumpShipType;
         private LocalCharacter m_ActiveCharacter;
 
@@ -136,6 +142,11 @@ namespace SMT
             trigLogoImage = ResourceLoader.LoadBitmapFromResource("Images/TrigTile.png");
             edencomLogoImage = ResourceLoader.LoadBitmapFromResource("Images/edencom.png");
             fightImage = ResourceLoader.LoadBitmapFromResource("Images/fight.png");
+            stormImageBase = ResourceLoader.LoadBitmapFromResource("Images/cloud_unknown.png");
+            stormImageEM = ResourceLoader.LoadBitmapFromResource("Images/cloud_em.png");
+            stormImageExp = ResourceLoader.LoadBitmapFromResource("Images/cloud_explosive.png");
+            stormImageKin = ResourceLoader.LoadBitmapFromResource("Images/cloud_kinetic.png");
+            stormImageTherm = ResourceLoader.LoadBitmapFromResource("Images/cloud_thermal.png");
 
             helpIcon.MouseLeftButtonDown += HelpIcon_MouseLeftButtonDown;
         }
@@ -370,6 +381,9 @@ namespace SMT
             }
         }
 
+
+        public List<InfoItem> InfoLayer { get; set; }
+
         public void AddSovConflictsToMap()
         {
             if (!ShowSystemTimers)
@@ -393,6 +407,8 @@ namespace SMT
                         Source = fightImage,
                         Stretch = Stretch.Uniform,
                         IsHitTestVisible = false,
+                      
+
                     };
                     SovFightLogo.IsHitTestVisible = false;
 
@@ -453,6 +469,126 @@ namespace SMT
                 }
             }
         }
+
+
+        public void AddStormsToMap()
+        {
+
+            foreach (Storm s in EM.MetaliminalStorms)
+            {
+
+                if (Region.IsSystemOnMap(s.System))
+                {
+                    MapSystem ms = Region.MapSystems[s.System];
+
+
+                    Image stormCloud = new Image
+                    {
+                        Width = 28,
+                        Height = 28,
+                        Name = "Storm",
+                        Source = stormImageBase,
+                        Stretch = Stretch.Uniform,
+                        IsHitTestVisible = false,
+                    };
+
+                    stormCloud.UseLayoutRounding = true;
+                    stormCloud.SnapsToDevicePixels = true;
+
+                    switch (s.Type)
+                    {
+                        case "Plasma":
+                            {
+                                stormCloud.Source = stormImageTherm;
+                            }
+                            break;
+
+                        case "Gamma":
+                            {
+                                stormCloud.Source = stormImageExp;
+                            }
+                            break;
+
+                        case "Exotic":
+                            {
+                                stormCloud.Source = stormImageKin;
+                            }
+                            break;
+
+                        case "Electrical":
+                            {
+                                stormCloud.Source = stormImageEM;
+                            }
+                            break;
+                    }
+
+
+                    Canvas.SetLeft(stormCloud, ms.LayoutX - SYSTEM_SHAPE_OFFSET - 15);
+                    Canvas.SetTop(stormCloud, ms.LayoutY - SYSTEM_SHAPE_OFFSET - 11);
+                    Canvas.SetZIndex(stormCloud, SYSTEM_Z_INDEX + 5);
+                    MainCanvas.Children.Add(stormCloud);
+                    DynamicMapElements.Add(stormCloud);
+
+
+                    // now the strong area..
+                    foreach (string strongSys in s.StrongArea)
+                    {
+                        if (Region.IsSystemOnMap(strongSys))
+                        {
+                            MapSystem mss = Region.MapSystems[strongSys];
+
+                            Image strongStormCloud = new Image
+                            {
+                                Width = 28,
+                                Height = 28,
+                                Name = "Storm",
+                                Source = stormCloud.Source,
+                                Stretch = Stretch.Uniform,
+                                IsHitTestVisible = false,
+                                Opacity = 1.0,
+                            };
+
+                            Canvas.SetLeft(strongStormCloud, mss.LayoutX - SYSTEM_SHAPE_OFFSET - 15);
+                            Canvas.SetTop(strongStormCloud, mss.LayoutY - SYSTEM_SHAPE_OFFSET - 11);
+                            Canvas.SetZIndex(strongStormCloud, SYSTEM_Z_INDEX + 5);
+                            MainCanvas.Children.Add(strongStormCloud);
+                            DynamicMapElements.Add(strongStormCloud);
+
+                        }
+
+                    }
+
+                    // now the wiki area..
+                    foreach (string weakSys in s.WeakArea)
+                    {
+                        if (Region.IsSystemOnMap(weakSys))
+                        {
+                            MapSystem msw = Region.MapSystems[weakSys];
+
+                            Image weakStormCloud = new Image
+                            {
+                                Width = 18,
+                                Height = 18,
+                                Name = "Storm",
+                                Source = stormCloud.Source,
+                                Stretch = Stretch.Uniform,
+                                IsHitTestVisible = false,
+                               // Opacity = 0.5,
+                            };
+
+                            Canvas.SetLeft(weakStormCloud, msw.LayoutX - SYSTEM_SHAPE_OFFSET - 10);
+                            Canvas.SetTop(weakStormCloud, msw.LayoutY - SYSTEM_SHAPE_OFFSET - 6);
+                            Canvas.SetZIndex(weakStormCloud, SYSTEM_Z_INDEX + 5);
+                            MainCanvas.Children.Add(weakStormCloud);
+                            DynamicMapElements.Add(weakStormCloud);
+
+                        }
+
+                    }
+                }
+            }
+        }
+
 
         public void AddTrigInvasionSytemsToMap()
         {
@@ -538,6 +674,19 @@ namespace SMT
             ActiveCharacter = null;
 
             RegionSelectCB.ItemsSource = EM.Regions;
+
+
+            ShowJumpBridges = MapConf.ToolBox_ShowJumpBridges;
+            ShowNPCKills = MapConf.ToolBox_ShowNPCKills;
+            ShowPodKills = MapConf.ToolBox_ShowPodKills;
+            ShowShipJumps = MapConf.ToolBox_ShowShipJumps;
+            ShowShipKills = MapConf.ToolBox_ShowShipKills;
+            ShowSovOwner = MapConf.ToolBox_ShowSovOwner;
+            ShowStandings = MapConf.ToolBox_ShowStandings;
+            ShowSystemADM = MapConf.ToolBox_ShowSystemADM;
+            ShowSystemSecurity = MapConf.ToolBox_ShowSystemSecurity;
+            ShowSystemTimers = MapConf.ToolBox_ShowSystemTimers;
+
             SelectRegion(MapConf.DefaultRegion);
 
             uiRefreshTimer = new System.Windows.Threading.DispatcherTimer();
@@ -642,6 +791,7 @@ namespace SMT
             AddHighlightToSystem(SelectedSystem);
             AddRouteToMap();
             AddTheraSystemsToMap();
+            AddStormsToMap();
             AddSovConflictsToMap();
             AddTrigInvasionSytemsToMap();
         }
@@ -1658,8 +1808,8 @@ namespace SMT
                 highlightSystemCircle.RenderTransform = rt;
 
                 DoubleCollection dashes = new DoubleCollection();
-                dashes.Add(1.0);
-                dashes.Add(1.0);
+                dashes.Add(0.71);
+                dashes.Add(0.71);
 
                 highlightSystemCircle.StrokeDashArray = dashes;
 
@@ -2613,6 +2763,19 @@ namespace SMT
             {
                 AllianceNameList.Visibility = Visibility.Hidden;
             }
+
+            // now add any info items
+            if(InfoLayer != null)
+            {
+                foreach (InfoItem ii in InfoLayer)
+                {
+                    if(ii.Region == Region.Name)
+                    {
+                        Shape s = ii.Draw();
+                        MainCanvas.Children.Add(s);
+                    }
+                }
+            }
         }
 
         private void AllianceKeyList_MouseDown(object sender, MouseButtonEventArgs e)
@@ -3181,6 +3344,24 @@ namespace SMT
                         tl.Content = $"Thera\t: out {tc.OutSignatureID}";
                         tl.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.PopupText);
                         SystemInfoPopupSP.Children.Add(tl);
+                    }
+                }
+
+                // storms
+                foreach (EVEData.Storm s in EM.MetaliminalStorms)
+                {
+                    if (selectedSys.Name == s.System)
+                    {
+                        SystemInfoPopupSP.Children.Add(new Separator());
+
+                        Label tl = new Label();
+                        tl.Padding = one;
+                        tl.Margin = one;
+                        tl.Content = $"Storm\t: {s.Type}";
+                        tl.Foreground = new SolidColorBrush(MapConf.ActiveColourScheme.PopupText);
+                        SystemInfoPopupSP.Children.Add(tl);
+
+
                     }
                 }
 

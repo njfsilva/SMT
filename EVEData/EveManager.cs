@@ -61,13 +61,7 @@ namespace SMT.EVEData
             LocalCharacters = new ObservableCollection<LocalCharacter>();
             VersionStr = version;
 
-            // ensure we have the cache folder setup
-            DataCacheFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\SMTCache";
-            if (!Directory.Exists(DataCacheFolder))
-            {
-                Directory.CreateDirectory(DataCacheFolder);
-            }
-
+  
             string SaveDataRoot = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT";
             if (!Directory.Exists(SaveDataRoot))
             {
@@ -88,23 +82,6 @@ namespace SMT.EVEData
                 Directory.CreateDirectory(characterSaveFolder);
             }
 
-            string webCacheFoilder = DataCacheFolder + "\\WebCache";
-            if (!Directory.Exists(webCacheFoilder))
-            {
-                Directory.CreateDirectory(webCacheFoilder);
-            }
-
-            string portraitCacheFoilder = DataCacheFolder + "\\Portraits";
-            if (!Directory.Exists(portraitCacheFoilder))
-            {
-                Directory.CreateDirectory(portraitCacheFoilder);
-            }
-
-            string logosFoilder = DataCacheFolder + "\\Logos";
-            if (!Directory.Exists(logosFoilder))
-            {
-                Directory.CreateDirectory(logosFoilder);
-            }
 
             CharacterIDToName = new SerializableDictionary<long, string>();
             AllianceIDToName = new SerializableDictionary<long, string>();
@@ -177,10 +154,6 @@ namespace SMT.EVEData
 
         public List<Coalition> Coalitions { get; set; }
 
-        /// <summary>
-        /// Gets or sets the folder to cache dotland svg's etc to
-        /// </summary>
-        public string DataCacheFolder { get; set; }
 
         public ESI.NET.EsiClient ESIClient { get; set; }
         public List<string> ESIScopes { get; set; }
@@ -241,6 +214,8 @@ namespace SMT.EVEData
         public ObservableCollection<Triangles.Invasion> TrigInvasions { get; set; }
         public bool UseESIForCharacterPositions { get; set; }
 
+        public ObservableCollection<Storm> MetaliminalStorms { get; set; }
+
 
         /// <summary>
         /// Gets or sets the current list of ZKillData
@@ -250,12 +225,12 @@ namespace SMT.EVEData
         /// <summary>
         /// Gets or sets the current list of clear markers for the intel (eg "Clear" "Clr" etc)
         /// </summary>
-        private List<string> IntelClearFilters { get; set; }
+         public List<string> IntelClearFilters { get; set; }
 
         /// <summary>
         /// Gets or sets the current list of intel filters used to monitor the local log files
         /// </summary>
-        private List<string> IntelFilters { get; set; }
+        public List<string> IntelFilters { get; set; }
 
         /// <summary>
         /// Gets or sets the Name to System dictionary
@@ -407,23 +382,19 @@ namespace SMT.EVEData
             // update the region cache
             foreach (MapRegion rd in Regions)
             {
-                string localSVG = DataCacheFolder + @"\" + rd.DotLanRef + ".svg";
+                string localSVG = AppDomain.CurrentDomain.BaseDirectory + @"..\..\..\SourceMaps\dotlan\" + rd.DotLanRef + ".svg";
                 string remoteSVG = @"http://evemaps.dotlan.net/svg/" + rd.DotLanRef + ".svg";
 
-                bool needsDownload = true;
 
-                if (File.Exists(localSVG))
+
+                if (!File.Exists(localSVG))
                 {
-                    needsDownload = false;
+                    // error
+                    throw new NullReferenceException();
+
                 }
 
-                if (needsDownload)
-                {
-                    webClient.DownloadFile(remoteSVG, localSVG);
 
-                    // throttle so we dont hammer the server
-                    Thread.Sleep(100);
-                }
 
                 // parse the svg as xml
                 XmlDocument xmldoc = new XmlDocument
@@ -585,8 +556,7 @@ namespace SMT.EVEData
                     if (r != null)
                     {
                         r.RegionX = x;
-                        r.RegionY = y;
-                        r.RegionZ = z;
+                        r.RegionY = z;
                     }
                 }
             }
@@ -839,59 +809,7 @@ namespace SMT.EVEData
                 }
             }
 
-            // now create the region outlines
-            foreach (MapRegion mr in Regions)
-            {
-                List<nAlpha.Point> regionShapePL = new List<nAlpha.Point>();
-                foreach (System s in Systems)
-                {
-                    if (s.Region == mr.Name)
-                    {
-                        nAlpha.Point p = new nAlpha.Point(s.ActualX, s.ActualZ);
-                        regionShapePL.Add(p);
-                    }
-                }
-
-                nAlpha.AlphaShapeCalculator shapeCalc = new nAlpha.AlphaShapeCalculator();
-                shapeCalc.Alpha = 1 / (20 * 9460730472580800.0);
-                shapeCalc.CloseShape = true;
-
-                nAlpha.Shape ns = shapeCalc.CalculateShape(regionShapePL.ToArray());
-
-                mr.RegionOutline = new List<Point>();
-
-                List<Tuple<int, int>> processed = new List<Tuple<int, int>>();
-
-                int CurrentPoint = 0;
-                int count = 0;
-                int edgeCount = ns.Edges.Length;
-                while (count < edgeCount)
-                {
-                    foreach (Tuple<int, int> i in ns.Edges)
-                    {
-                        if (processed.Contains(i))
-                            continue;
-
-                        if (i.Item1 == CurrentPoint)
-                        {
-                            mr.RegionOutline.Add(new Point(ns.Vertices[CurrentPoint].X, ns.Vertices[CurrentPoint].Y));
-                            CurrentPoint = i.Item2;
-                            processed.Add(i);
-                            break;
-                        }
-
-                        if (i.Item2 == CurrentPoint)
-                        {
-                            mr.RegionOutline.Add(new Point(ns.Vertices[CurrentPoint].X, ns.Vertices[CurrentPoint].Y));
-                            CurrentPoint = i.Item1;
-                            processed.Add(i);
-                            break;
-                        }
-                    }
-
-                    count++;
-                }
-            }
+ 
 
             foreach (System s in Systems)
             {
@@ -924,13 +842,6 @@ namespace SMT.EVEData
                     }
                 }
             }
-
-
-
-
- 
-
-
 
 
 
@@ -1114,7 +1025,137 @@ namespace SMT.EVEData
                 }
             }
 
+
+            // now generate the 2d universe view coordinates 
+
+            double RenderSize = 5000;
+            double universeXMin = 0.0;
+            double universeXMax = 336522971264518000.0;
+
+            double universeZMin = -484452845697854000;
+            double universeZMax = 472860102256057000.0;
+
+            foreach (EVEData.System sys in Systems)
+            {
+ 
+
+                if (sys.ActualX < universeXMin)
+                {
+                    universeXMin = sys.ActualX;
+                }
+
+                if (sys.ActualX > universeXMax)
+                {
+                    universeXMax = sys.ActualX;
+                }
+
+                if (sys.ActualZ < universeZMin)
+                {
+                    universeZMin = sys.ActualZ;
+                }
+
+                if (sys.ActualZ > universeZMax)
+                {
+                    universeZMax = sys.ActualZ;
+                }
+            }
+            double universeWidth = universeXMax - universeXMin;
+            double universeDepth = universeZMax - universeZMin;
+            double XScale = (RenderSize) / universeWidth;
+            double ZScale = (RenderSize) / universeDepth;
+            double universeScale = Math.Min(XScale, ZScale);
+
+
+           
+            foreach (EVEData.System sys in Systems)
+            {
+                double X = (sys.ActualX - universeXMin) * universeScale;
+
+                // need to invert Z
+                double Z = (universeDepth - (sys.ActualZ - universeZMin)) * universeScale;
+
+                sys.UniverseX = X;
+                sys.UniverseY = Z;
+            }
+
+
+            // now create the region outlines and recalc the centre
+            foreach (MapRegion mr in Regions)
+            {
+
+                mr.RegionX = (mr.RegionX - universeXMin) * universeScale;
+                mr.RegionY = (universeDepth - (mr.RegionY - universeZMin)) * universeScale;
+
+                List<nAlpha.Point> regionShapePL = new List<nAlpha.Point>();
+                foreach (System s in Systems)
+                {
+                    if (s.Region == mr.Name)
+                    {
+                        nAlpha.Point p = new nAlpha.Point(s.UniverseX, s.UniverseY);
+                        regionShapePL.Add(p);
+                    }
+                }
+
+                nAlpha.AlphaShapeCalculator shapeCalc = new nAlpha.AlphaShapeCalculator();
+                shapeCalc.Alpha = 1 / (20 * 9460730472580800.0 * 5.22295244275827E-15);
+                shapeCalc.CloseShape = true;
+
+                nAlpha.Shape ns = shapeCalc.CalculateShape(regionShapePL.ToArray());
+
+                mr.RegionOutline = new List<Point>();
+
+                List<Tuple<int, int>> processed = new List<Tuple<int, int>>();
+
+                int CurrentPoint = 0;
+                int count = 0;
+                int edgeCount = ns.Edges.Length;
+                while (count < edgeCount)
+                {
+                    foreach (Tuple<int, int> i in ns.Edges)
+                    {
+                        if (processed.Contains(i))
+                            continue;
+
+                        if (i.Item1 == CurrentPoint)
+                        {
+                            mr.RegionOutline.Add(new Point(ns.Vertices[CurrentPoint].X, ns.Vertices[CurrentPoint].Y));
+                            CurrentPoint = i.Item2;
+                            processed.Add(i);
+                            break;
+                        }
+
+                        if (i.Item2 == CurrentPoint)
+                        {
+                            mr.RegionOutline.Add(new Point(ns.Vertices[CurrentPoint].X, ns.Vertices[CurrentPoint].Y));
+                            CurrentPoint = i.Item1;
+                            processed.Add(i);
+                            break;
+                        }
+                    }
+
+                    count++;
+                }
+            }
+
+            // debug write out universe to CSV
+
+            using (var w = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + @"\universeDump.csv"))
+            {
+                string Header = "Region,Name, UniverseX, UniverseY";
+                w.WriteLine(Header);
+
+                foreach(System s in Systems)
+                {
+                    string CSVLine = $"{s.Region},{s.Name},{s.UniverseX},{s.UniverseY}";
+                    w.WriteLine(CSVLine);
+                }
+            }
+
+
+
+
             // now serialise the classes to disk
+
             Utils.SerializeToDisk<SerializableDictionary<string, string>>(ShipTypes, AppDomain.CurrentDomain.BaseDirectory + @"\ShipTypes.dat");
             Utils.SerializeToDisk<List<MapRegion>>(Regions, AppDomain.CurrentDomain.BaseDirectory + @"\MapLayout.dat");
             Utils.SerializeToDisk<List<System>>(Systems, AppDomain.CurrentDomain.BaseDirectory + @"\Systems.dat");
@@ -1577,6 +1618,11 @@ namespace SMT.EVEData
 
             string jbFileName = SaveDataRootFolder + @"\JumpBridges_" + JumpBridge.SaveVersion + ".dat";
             Utils.SerializeToDisk<ObservableCollection<JumpBridge>>(JumpBridges, jbFileName);
+
+            // save the intel channels / intel filters
+            File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\IntelChannels.txt", IntelFilters);
+            File.WriteAllLines(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\IntelClearFilters.txt", IntelClearFilters);
+
         }
 
         /// <summary>
@@ -1586,7 +1632,8 @@ namespace SMT.EVEData
         {
             IntelFilters = new List<string>();
             IntelDataList = new BindingList<IntelData>();
-            string intelFileFilter = AppDomain.CurrentDomain.BaseDirectory + @"\IntelChannels.txt";
+            string intelFileFilter = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\IntelChannels.txt";
+
 
             if (File.Exists(intelFileFilter))
             {
@@ -1601,9 +1648,13 @@ namespace SMT.EVEData
                     }
                 }
             }
+            else
+            {
+                IntelFilters.Add("Int");
+            }
 
             IntelClearFilters = new List<string>();
-            string intelClearFileFilter = AppDomain.CurrentDomain.BaseDirectory + @"\IntelClearFilters.txt";
+            string intelClearFileFilter = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\IntelClearFilters.txt";
 
             if (File.Exists(intelClearFileFilter))
             {
@@ -1617,6 +1668,13 @@ namespace SMT.EVEData
                         IntelClearFilters.Add(line);
                     }
                 }
+            }
+            else
+            {
+                // default
+                IntelClearFilters.Add("Clr");
+                IntelClearFilters.Add("Clear");
+
             }
 
             intelFileReadPos = new Dictionary<string, int>();
@@ -1731,6 +1789,47 @@ namespace SMT.EVEData
             }), DispatcherPriority.Normal, null);
 
             request.BeginGetResponse(new AsyncCallback(UpdateTheraConnectionsCallback), request);
+        }
+
+
+        public void UpdateMetaliminalStorms()
+        {
+            Application.Current.Dispatcher.Invoke((Action)(() =>
+            {
+                MetaliminalStorms.Clear();
+
+                List<Storm> ls = Storm.GetStorms();
+                foreach(Storm s in ls)
+                {
+                    System sys = GetEveSystem(s.System);
+                    if(sys != null)
+                    {
+                        MetaliminalStorms.Add(s);
+                    }
+                }
+
+            }), DispatcherPriority.Normal, null);
+
+
+            // now update the Strong and weak areas around the storm 
+            foreach(Storm s in MetaliminalStorms)
+            {
+
+                // The Strong area is 1 jump out from the centre
+                List<string> strongArea = Navigation.GetSystemsXJumpsFrom(new List<string>(), s.System, 1);
+
+                // The weak area is 3 jumps out from the centre
+                List<string> weakArea = Navigation.GetSystemsXJumpsFrom(new List<string>(), s.System, 3);
+
+                // strip the strong area out of the weak so we dont have overlapping icons
+                s.WeakArea = weakArea.Except(strongArea).ToList();
+
+                // strip the centre out of the strong area
+                strongArea.Remove(s.Name);
+
+                s.StrongArea = strongArea;
+
+            }
         }
 
         /// <summary>
@@ -1927,6 +2026,9 @@ namespace SMT.EVEData
 
             InitTheraConnections();
             InitTrigInvasions();
+            InitMetaliminalStorms();
+
+
 
             ActiveSovCampaigns = new ObservableCollection<SOVCampaign>();
 
@@ -1949,6 +2051,11 @@ namespace SMT.EVEData
         {
             TrigInvasions = new ObservableCollection<Triangles.Invasion>();
             UpdateTrigInvasions();
+        }
+
+        private void InitMetaliminalStorms()
+        {
+            MetaliminalStorms = new ObservableCollection<Storm>();
         }
 
         /// <summary>
@@ -2170,7 +2277,7 @@ namespace SMT.EVEData
 
                                     IntelDataList.Insert(0, id);
 
-                                    if (IntelAddedEvent != null)
+                                    if (IntelAddedEvent != null && !id.ClearNotification)
                                     {
                                         IntelAddedEvent(id.Systems);
                                     }

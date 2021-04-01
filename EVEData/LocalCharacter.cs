@@ -363,6 +363,10 @@ namespace SMT.EVEData
                                 // found a jump gate
                                 if (esrs.Data.TypeId == 35841)
                                 {
+
+
+
+
                                     string[] parts = esrs.Data.Name.Split(' ');
                                     string from = parts[0];
                                     string to = parts[2];
@@ -573,6 +577,12 @@ namespace SMT.EVEData
             }
             catch (Exception ex)
             {
+                // expired token
+                if(ex.HResult == -2147024809)
+                {
+                    ESIRefreshToken = "";
+                    ESILinked = false;
+                }
             }
         }
 

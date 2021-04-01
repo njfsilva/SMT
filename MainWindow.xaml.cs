@@ -26,7 +26,7 @@ namespace SMT
     /// </summary>
     public partial class MainWindow : Window
     {
-        public const string SMT_VERSION = "SMT_095";
+        public const string SMT_VERSION = "SMT_099";
         public static MainWindow AppWindow;
         private LogonWindow logonBrowserWindow;
 
@@ -35,6 +35,8 @@ namespace SMT
 
         private int uiRefreshCounter = 0;
         private System.Windows.Threading.DispatcherTimer uiRefreshTimer;
+
+        private List<InfoItem> InfoLayer;
 
         /// <summary>
         /// Main Window
@@ -50,7 +52,7 @@ namespace SMT
 
             InitializeComponent();
 
-            Title = "SMT (Dr dont touch it : " + SMT_VERSION + ")";
+            Title = "SMT (Getting Closer.. : " + SMT_VERSION + ")";
 
             CheckGitHubVersion();
 
@@ -129,6 +131,8 @@ namespace SMT
             EVEManager.UpdateESIUniverseData();
             EVEManager.InitNavigation();
 
+            EVEManager.UpdateMetaliminalStorms();
+
             EVEManager.LocalCharacters.CollectionChanged += LocalCharacters_CollectionChanged;
 
             CharactersList.ItemsSource = EVEManager.LocalCharacters;
@@ -138,11 +142,52 @@ namespace SMT
 
             TheraConnectionsList.ItemsSource = EVEManager.TheraConnections;
             JumpBridgeList.ItemsSource = EVEManager.JumpBridges;
+            MetaliminalStormList.ItemsSource = EVEManager.MetaliminalStorms;
 
             SovCampaignList.ItemsSource = EVEManager.ActiveSovCampaigns;
             EVEManager.ActiveSovCampaigns.CollectionChanged += ActiveSovCampaigns_CollectionChanged;
 
             TrigInvasionsList.ItemsSource = EVEManager.TrigInvasions;
+
+            LoadInfoObjects();
+            UpdateJumpBridgeSummary();
+
+            // load any custom universe view layout
+            // Save any custom map Layout
+            string customLayoutFile = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\" + SMT_VERSION + "\\CustomUniverseLayout.txt";
+            if (File.Exists(customLayoutFile))
+            {
+                try
+                {
+                    using (TextReader tr = new StreamReader(customLayoutFile))
+                    {
+
+                        string line = tr.ReadLine();
+
+                        while (line != null)
+                        {
+                            string[] bits = line.Split(',');
+                            string region = bits[0];
+                            string system = bits[1];
+                            double x = double.Parse(bits[2]);
+                            double y = double.Parse(bits[3]);
+
+                            EVEData.System sys = EVEManager.GetEveSystem(system);
+                            if (sys != null)
+                            {
+                                sys.UniverseX = x;
+                                sys.UniverseY = y;
+                                sys.CustomUniverseLayout = true;
+                            }
+
+                            line = tr.ReadLine();
+                        }
+                    }
+                }
+                catch { }
+            }
+
+
 
             RegionUC.MapConf = MapConf;
             RegionUC.Init();
@@ -185,14 +230,15 @@ namespace SMT
                 ANOMManager = new EVEData.AnomManager();
             }
 
+
+
             RegionUC.ANOMManager = ANOMManager;
 
             List<EVEData.System> globalSystemList = new List<EVEData.System>(EVEManager.Systems);
             globalSystemList.Sort((a, b) => string.Compare(a.Name, b.Name));
             RouteSystemDropDownAC.ItemsSource = globalSystemList;
 
-            ColoursPropertyGrid.SelectedObject = MapConf.ActiveColourScheme;
-            ColoursPropertyGrid.PropertyValueChanged += ColoursPropertyGrid_PropertyValueChanged; ;
+
             MapConf.PropertyChanged += MapConf_PropertyChanged;
 
             Closed += MainWindow_Closed;
@@ -214,6 +260,8 @@ namespace SMT
             {
                 lc.Location = "";
             }
+
+
         }
 
 
@@ -308,14 +356,44 @@ namespace SMT
                 // Save off any explicit items
                 MapConf.UseESIForCharacterPositions = EVEManager.UseESIForCharacterPositions;
 
+
+
+
+
                 // Save the Map Colours
                 string mapConfigFileName = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\" + SMT_VERSION + "\\MapConfig.dat";
+
+
+                // save off the toolbar setup
+                MapConf.ToolBox_ShowJumpBridges = RegionUC.ShowJumpBridges ;
+                MapConf.ToolBox_ShowNPCKills = RegionUC.ShowNPCKills;
+                MapConf.ToolBox_ShowPodKills = RegionUC.ShowPodKills;
+                MapConf.ToolBox_ShowShipJumps = RegionUC.ShowShipJumps;
+                MapConf.ToolBox_ShowShipKills = RegionUC.ShowShipKills;
+                MapConf.ToolBox_ShowSovOwner = RegionUC.ShowSovOwner;
+                MapConf.ToolBox_ShowStandings = RegionUC.ShowStandings;
+                MapConf.ToolBox_ShowSystemADM = RegionUC.ShowSystemADM;
+                MapConf.ToolBox_ShowSystemSecurity = RegionUC.ShowSystemSecurity;
+                MapConf.ToolBox_ShowSystemTimers = RegionUC.ShowSystemTimers;
 
                 // now serialise the class to disk
                 XmlSerializer xms = new XmlSerializer(typeof(MapConfig));
                 using (TextWriter tw = new StreamWriter(mapConfigFileName))
                 {
                     xms.Serialize(tw, MapConf);
+                }
+
+                // Save any custom map Layout
+                string customLayoutFile = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "\\SMT\\" + SMT_VERSION + "\\CustomUniverseLayout.txt";
+                using (TextWriter tw = new StreamWriter(customLayoutFile))
+                {
+                    foreach(EVEData.System s in EVEManager.Systems)
+                    {
+                        if(s.CustomUniverseLayout)
+                        {
+                            tw.WriteLine($"{s.Region},{s.Name},{s.UniverseX},{s.UniverseY}");
+                        }
+                    }
                 }
             }
             catch
@@ -514,11 +592,7 @@ namespace SMT
 
         #region Preferences & Options
 
-        private void ColoursPropertyGrid_PropertyValueChanged(object sender, Xceed.Wpf.Toolkit.PropertyGrid.PropertyValueChangedEventArgs e)
-        {
-            RegionUC.ReDrawMap(true);
-            UniverseUC.ReDrawMap(true, true, true);
-        }
+
 
         private void ForceESIUpdate_MenuItem_Click(object sender, RoutedEventArgs e)
         {
@@ -550,6 +624,7 @@ namespace SMT
             preferencesWindow.Owner = this;
             preferencesWindow.DataContext = MapConf;
             preferencesWindow.MapConf = MapConf;
+            preferencesWindow.EM = EVEManager;
             preferencesWindow.ShowDialog();
             preferencesWindow.Closed += PreferencesWindow_Closed;
         }
@@ -560,13 +635,6 @@ namespace SMT
             UniverseUC.ReDrawMap(true, true, false);
         }
 
-        private void ResetColourData_Click(object sender, RoutedEventArgs e)
-        {
-            MapConf.SetDefaultColours();
-            ColoursPropertyGrid.SelectedObject = MapConf.ActiveColourScheme;
-            RegionUC.ReDrawMap(true);
-            UniverseUC.ReDrawMap(true, true, true);
-        }
 
         #endregion Preferences & Options
 
@@ -976,6 +1044,7 @@ namespace SMT
             {
                 c.RecalcRoute();
             }
+            UpdateJumpBridgeSummary();
         }
 
         private void EnableDisableJumpGateMenuItem_Click(object sender, RoutedEventArgs e)
@@ -998,6 +1067,8 @@ namespace SMT
             {
                 c.RecalcRoute();
             }
+
+            UpdateJumpBridgeSummary();
         }
 
         private void ExportJumpGatesBtn_Click(object sender, RoutedEventArgs e)
@@ -1135,6 +1206,7 @@ namespace SMT
 
             EVEData.Navigation.ClearJumpBridges();
             EVEData.Navigation.UpdateJumpBridges(EVEManager.JumpBridges.ToList());
+            UpdateJumpBridgeSummary();
             RegionUC.ReDrawMap(true);
 
             ImportJumpGatesBtn.IsEnabled = true;
@@ -1183,12 +1255,41 @@ namespace SMT
 
             EVEData.Navigation.ClearJumpBridges();
             EVEData.Navigation.UpdateJumpBridges(EVEManager.JumpBridges.ToList());
+            UpdateJumpBridgeSummary();
             RegionUC.ReDrawMap(true);
         }
 
+
+        private void UpdateJumpBridgeSummary()
+        {
+            int JBCount = 0;
+            int MissingInfo = 0;
+            int Disabled = 0;
+
+
+            foreach (EVEData.JumpBridge jb in EVEManager.JumpBridges)
+            {
+                JBCount++;
+
+                if (jb.FromID == 0 || jb.ToID == 0)
+                {
+                    MissingInfo++;
+                }
+                if (jb.Disabled)
+                {
+                    Disabled++;
+                }
+            }
+
+            string Label = $"{JBCount} Ansiblex, {MissingInfo} Incomplete, {Disabled} Disabled ";
+
+            AnsiblexSummaryLbl.Content = Label; 
+        }
+
+
         #endregion JumpBridges
 
-        #region ZKillBoard
+            #region ZKillBoard
 
         private bool zkbFilterByRegion = true;
 
@@ -1347,6 +1448,134 @@ namespace SMT
 
             charactersWindow.ShowDialog();
 
+        }
+
+        private void LoadInfoObjects()
+        {
+
+            InfoLayer = new List<InfoItem>();
+
+            // now add the beacons
+            string infoObjectsFile = AppDomain.CurrentDomain.BaseDirectory + @"\InfoObjects.txt";
+            if (File.Exists(infoObjectsFile))
+            {
+                StreamReader file = new StreamReader(infoObjectsFile);
+
+                string line;
+                while ((line = file.ReadLine()) != null)
+                {
+                    line = line.Trim();
+                    if (line.StartsWith("#"))
+                    {
+                            continue;
+                    }
+
+                    string[] parts = line.Split(' ');
+
+                    if(parts.Length == 0 )
+                    {
+                        continue;
+                    }
+
+                    string region = parts[0];
+
+                    EVEData.MapRegion mr = EVEManager.GetRegion(region);
+                    if(mr == null)
+                    {
+                        continue;
+                    }
+
+                    if(parts[1] == "SYSLINK")
+                    {
+                        if(parts.Length != 7)
+                        {
+                            continue;
+                        }
+                        // REGION SYSLINK FROM TO SOLID/DASHED size #FFFFFF 
+                        string from = parts[2];
+                        string to = parts[3];
+                        string lineStyle = parts[4];
+                        string size = parts[5];
+                        string colour = parts[6];
+
+                        if(!mr.MapSystems.ContainsKey(from))
+                        {
+                            continue;
+                        }
+
+                        if (!mr.MapSystems.ContainsKey(to))
+                        {
+                            continue;
+                        }
+
+                        EVEData.MapSystem fromMS = mr.MapSystems[from];
+                        EVEData.MapSystem toMS = mr.MapSystems[to];
+
+                        InfoItem.LineType lt = InfoItem.LineType.Solid;
+                        if(lineStyle == "DASHED")
+                        {
+                            lt = InfoItem.LineType.Dashed;
+                        }
+
+                        Color c = (Color)ColorConverter.ConvertFromString(colour);
+
+                        int lineThickness = int.Parse(size);
+
+
+                        InfoItem ii = new InfoItem();
+                        ii.DrawType = InfoItem.ShapeType.Line;
+                        ii.X1 = (int)fromMS.LayoutX;
+                        ii.Y1 = (int)fromMS.LayoutY;
+                        ii.X2 = (int)toMS.LayoutX;
+                        ii.Y2 = (int)toMS.LayoutY;
+                        ii.Size = lineThickness;
+                        ii.Region = region;
+                        ii.Fill = c;
+                        ii.LineStyle = lt;
+                        InfoLayer.Add(ii);
+                    }
+
+
+                    if (parts[1] == "SYSMARKER")
+                    {
+                        if (parts.Length != 5)
+                        {
+                            continue;
+                        }
+                        // REGION SYSMARKER FROM SIZE #FFFFFF 
+                        string from = parts[2];
+                        string size = parts[3];
+                        string colour = parts[4];
+
+                        if (!mr.MapSystems.ContainsKey(from))
+                        {
+                            continue;
+                        }
+
+                        EVEData.MapSystem fromMS = mr.MapSystems[from];
+
+
+                        Color c = (Color)ColorConverter.ConvertFromString(colour);
+
+                        int radius = int.Parse(size);
+
+
+                        InfoItem ii = new InfoItem();
+                        ii.DrawType = InfoItem.ShapeType.Circle;
+                        ii.X1 = (int)fromMS.LayoutX;
+                        ii.Y1 = (int)fromMS.LayoutY;
+                        ii.Size = radius;
+                        ii.Region = region;
+                        ii.Fill = c;
+                        InfoLayer.Add(ii);
+                    }
+
+
+
+                }
+            }
+
+            RegionUC.InfoLayer = InfoLayer;
         }
     }
 
