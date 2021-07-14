@@ -5,7 +5,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SMT"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
-        xmlns:diag="clr-namespace:System.Diagnostics;assembly=WindowsBase"
         mc:Ignorable="d"
         Name="PrefsWindow"
         Title="Preferences" Height="455" Width="600" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" Loaded="Window_Loaded">
@@ -29,6 +28,10 @@
                                     <CheckBox IsChecked="{Binding Path=AlwaysOnTop}" Margin="0,3" Content="Always on top" />
                                     <CheckBox IsChecked="{Binding Path=SyncActiveCharacterBasedOnActiveEVEClient}" Margin="0,3">Auto sync character to active window</CheckBox>
                                     <CheckBox x:Name="syncESIPositionChk" Margin="0,3" Checked="syncESIPositionChk_Checked" Unchecked="syncESIPositionChk_Checked">Use ESI for character positions</CheckBox>
+                                    <CheckBox IsChecked="{Binding Path=DrawRoute}" Margin="0,3" Content="Draw Route" />
+
+
+                                    
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
@@ -54,7 +57,6 @@
                             <GroupBox Header="Region" Margin="4" Height="355">
                                 <StackPanel>
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowActiveIncursions}" Content="Show Active Incursions" />
-                                    <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowCynoBeacons}" Content="Show Cyno Beacons" />
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowJoveObservatories}" Content="Show Jove Observatories" />
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowToolBox}" Content="Show Toolbox" />
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowTrueSec}" Content="Show TrueSec" />
@@ -67,8 +69,6 @@
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowOnlyFinalLiminality}" Content="Limit Trig Invasions to Final Luminality" />
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowOfflineCharactersOnMap}" Content="Show Offline Characters" />
                                     <CheckBox Margin="0,3" IsChecked="{Binding Path=LimitESIDataToRegion}" Content="Limit data overlay to in-region only" />
-
-
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
@@ -168,6 +168,15 @@
                                         <xctk:IntegerUpDown Value="{Binding Path=UpcomingSovMinutes}" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0" Width="70" Minimum="5" Maximum="360" Background="Transparent"  Foreground="White" />
                                         <Label Content="Upcoming Period (Mins)" />
                                     </StackPanel>
+                                </StackPanel>
+                            </GroupBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <GroupBox Header="Beacons" Margin="4" Height="355">
+                                <StackPanel>
+                                    <CheckBox Margin="0,3" IsChecked="{Binding Path=ShowCynoBeacons}" Content="Show Cyno Beacons" />
+                                    <TextBox Width="271" Height="300" Text="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=Window}, Path=CynoBeaconSystems, Converter={StaticResource stringJoiner}, Mode=TwoWay}"  TextWrapping="Wrap" AcceptsReturn="True" />
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>

@@ -26,7 +26,7 @@ namespace SMT
     /// </summary>
     public partial class MainWindow : Window
     {
-        public const string SMT_VERSION = "SMT_099";
+        public const string SMT_VERSION = "SMT_101";
         public static MainWindow AppWindow;
         private LogonWindow logonBrowserWindow;
 
@@ -52,7 +52,7 @@ namespace SMT
 
             InitializeComponent();
 
-            Title = "SMT (Getting Closer.. : " + SMT_VERSION + ")";
+            Title = "SMT (Heroes & Kings : " + SMT_VERSION + ")";
 
             CheckGitHubVersion();
 
@@ -111,7 +111,7 @@ namespace SMT
             EVEManager.UseESIForCharacterPositions = MapConf.UseESIForCharacterPositions;
 
             // if we want to re-build the data as we've changed the format, recreate it all from scratch
-            bool initFromScratch = false;
+            bool initFromScratch = true;
             if (initFromScratch)
             {
                 EVEManager.CreateFromScratch();
@@ -625,6 +625,7 @@ namespace SMT
             preferencesWindow.DataContext = MapConf;
             preferencesWindow.MapConf = MapConf;
             preferencesWindow.EM = EVEManager;
+            preferencesWindow.Init();
             preferencesWindow.ShowDialog();
             preferencesWindow.Closed += PreferencesWindow_Closed;
         }
@@ -1281,7 +1282,7 @@ namespace SMT
                 }
             }
 
-            string Label = $"{JBCount} Ansiblex, {MissingInfo} Incomplete, {Disabled} Disabled ";
+            string Label = $"{JBCount} gates, {MissingInfo} Incomplete, {Disabled} Disabled ";
 
             AnsiblexSummaryLbl.Content = Label; 
         }
